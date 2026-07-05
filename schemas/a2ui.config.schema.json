@@ -1,0 +1,99 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "title": "A2UI Studio configuration",
+  "description": "Workspace configuration for the A2UI Studio VS Code extension. Commit this file to share provider profiles and generation settings with your team.",
+  "type": "object",
+  "additionalProperties": false,
+  "properties": {
+    "$schema": { "type": "string" },
+    "defaultProfile": {
+      "type": "string",
+      "description": "Name of the profile activated by default when this workspace opens."
+    },
+    "autoRepair": {
+      "type": "boolean",
+      "description": "When the model emits invalid A2UI messages, automatically send one corrective follow-up turn. Overrides the VS Code setting."
+    },
+    "systemPromptAppend": {
+      "type": "string",
+      "description": "Extra instructions appended to the A2UI system prompt (e.g. brand voice, design rules, preferred theme colors)."
+    },
+    "ollamaUrl": {
+      "type": "string",
+      "description": "Base URL of the Ollama server. Overrides the VS Code setting.",
+      "examples": ["http://localhost:11434"]
+    },
+    "baseUrls": {
+      "type": "object",
+      "additionalProperties": false,
+      "description": "Per-provider gateway base URLs (AWS/LiteLLM-style proxies). Model lists are fetched from these URLs; API keys become optional.",
+      "properties": {
+        "anthropic": { "type": "string" },
+        "openai": { "type": "string" },
+        "gemini": { "type": "string" }
+      }
+    },
+    "catalog": {
+      "type": "object",
+      "additionalProperties": false,
+      "description": "Custom component catalog for this workspace. The agent is instructed to use only these components; unknown components render as labeled placeholders in the studio.",
+      "properties": {
+        "id": {
+          "type": "string",
+          "description": "Catalog identifier the agent should put in createSurface.catalogId. Defaults to the catalog file's catalogId/$id."
+        },
+        "path": {
+          "type": "string",
+          "description": "Path to the catalog JSON file, relative to this config file.",
+          "examples": ["./design-system.catalog.json"]
+        }
+      }
+    },
+    "profiles": {
+      "type": "array",
+      "description": "Named provider/model presets selectable from the A2UI Studio UI.",
+      "items": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": ["name", "provider"],
+        "properties": {
+          "name": {
+            "type": "string",
+            "description": "Unique display name for this profile.",
+            "minLength": 1
+          },
+          "description": {
+            "type": "string",
+            "description": "Optional short description shown in the Settings view."
+          },
+          "provider": {
+            "type": "string",
+            "enum": ["copilot", "anthropic", "openai", "gemini", "ollama"],
+            "description": "AI provider used by this profile."
+          },
+          "model": {
+            "type": "string",
+            "description": "Model ID. Leave empty for the provider default."
+          },
+          "baseUrl": {
+            "type": "string",
+            "description": "Custom API base URL (enterprise gateways / proxies). Applies to anthropic, openai, gemini and ollama providers.",
+            "examples": ["https://llm-gateway.mycompany.com/anthropic"]
+          },
+          "temperature": {
+            "type": "number",
+            "minimum": 0,
+            "maximum": 2,
+            "description": "Sampling temperature for this profile."
+          },
+          "maxTokens": {
+            "type": "integer",
+            "minimum": 256,
+            "maximum": 128000,
+            "description": "Maximum output tokens per turn."
+          }
+        }
+      }
+    }
+  }
+}

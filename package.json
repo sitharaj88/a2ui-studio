@@ -1,0 +1,286 @@
+{
+  "name": "a2ui-studio",
+  "displayName": "A2UI Studio",
+  "description": "Experiment with the A2UI protocol (a2ui.org) \u2014 generate live, agent-driven UIs with GitHub Copilot, Claude, OpenAI, Gemini, or Ollama, rendered right inside VS Code.",
+  "version": "0.2.2",
+  "publisher": "sitharaj",
+  "license": "Apache-2.0",
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/sitharaj/a2ui-studio.git"
+  },
+  "icon": "media/icon.png",
+  "engines": {
+    "vscode": "^1.95.0"
+  },
+  "categories": [
+    "AI",
+    "Visualization",
+    "Other"
+  ],
+  "keywords": [
+    "a2ui",
+    "agent",
+    "generative ui",
+    "copilot",
+    "ai"
+  ],
+  "main": "./dist/extension.js",
+  "activationEvents": [],
+  "contributes": {
+    "commands": [
+      {
+        "command": "a2ui.openPlayground",
+        "title": "A2UI: Open Playground",
+        "icon": "$(sparkle)"
+      },
+      {
+        "command": "a2ui.previewFile",
+        "title": "A2UI: Preview Current File",
+        "icon": "$(open-preview)"
+      },
+      {
+        "command": "a2ui.setApiKey",
+        "title": "A2UI: Set AI Provider API Key"
+      },
+      {
+        "command": "a2ui.openSettings",
+        "title": "A2UI: Open Studio Settings",
+        "icon": "$(settings-gear)"
+      },
+      {
+        "command": "a2ui.openConfigFile",
+        "title": "A2UI: Open Workspace Config File (a2ui.config.json)"
+      },
+      {
+        "command": "a2ui.newExampleFile",
+        "title": "A2UI: New Example Stream File"
+      },
+      {
+        "command": "a2ui.previewText",
+        "title": "A2UI: Preview Stream Text"
+      }
+    ],
+    "customEditors": [
+      {
+        "viewType": "a2ui.preview",
+        "displayName": "A2UI Live Preview",
+        "selector": [
+          {
+            "filenamePattern": "*.a2ui.json"
+          },
+          {
+            "filenamePattern": "*.a2ui.jsonl"
+          }
+        ],
+        "priority": "option"
+      }
+    ],
+    "chatParticipants": [
+      {
+        "id": "a2ui.agent",
+        "name": "a2ui",
+        "fullName": "A2UI Studio",
+        "description": "Generate an A2UI surface from a description",
+        "isSticky": true
+      }
+    ],
+    "walkthroughs": [
+      {
+        "id": "a2ui.gettingStarted",
+        "title": "Get started with A2UI Studio",
+        "description": "Generate live, agent-driven UIs from plain language \u2014 with any AI provider.",
+        "steps": [
+          {
+            "id": "a2ui.step.open",
+            "title": "Open the studio",
+            "description": "The playground, dashboard, arena and gallery all live in one panel.\n[Open A2UI Studio](command:a2ui.openPlayground)",
+            "media": {
+              "markdown": "media/walkthrough/open.md"
+            },
+            "completionEvents": [
+              "onCommand:a2ui.openPlayground"
+            ]
+          },
+          {
+            "id": "a2ui.step.demo",
+            "title": "Play an instant demo",
+            "description": "Two prerecorded A2UI streams render with zero AI setup \u2014 feel the protocol in seconds from the Gallery view.",
+            "media": {
+              "markdown": "media/walkthrough/demo.md"
+            }
+          },
+          {
+            "id": "a2ui.step.provider",
+            "title": "Pick your AI provider",
+            "description": "GitHub Copilot works with zero configuration. Claude, OpenAI and Gemini need a key.\n[Set an API key](command:a2ui.setApiKey)",
+            "media": {
+              "markdown": "media/walkthrough/provider.md"
+            },
+            "completionEvents": [
+              "onCommand:a2ui.setApiKey"
+            ]
+          },
+          {
+            "id": "a2ui.step.config",
+            "title": "Share a team config",
+            "description": "Commit a2ui.config.json to share provider profiles, gateways and prompt rules.\n[Create config file](command:a2ui.openConfigFile)",
+            "media": {
+              "markdown": "media/walkthrough/config.md"
+            },
+            "completionEvents": [
+              "onCommand:a2ui.openConfigFile"
+            ]
+          }
+        ]
+      }
+    ],
+    "viewsContainers": {
+      "activitybar": [
+        {
+          "id": "a2ui-studio",
+          "title": "A2UI Studio",
+          "icon": "media/activity-icon.svg"
+        }
+      ]
+    },
+    "views": {
+      "a2ui-studio": [
+        {
+          "id": "a2ui.home",
+          "name": "A2UI Studio",
+          "icon": "media/activity-icon.svg"
+        }
+      ]
+    },
+    "viewsWelcome": [
+      {
+        "view": "a2ui.home",
+        "contents": "**A2UI Studio** \u2014 experiment with agent-driven interfaces.\n\nDescribe any UI in plain language and watch an AI agent stream a live, interactive A2UI surface.\n\n[$(sparkle) Open Playground](command:a2ui.openPlayground)\n\nPreview an A2UI JSONL stream from a file:\n[$(open-preview) Preview Current File](command:a2ui.previewFile)\n\nLearn more at [a2ui.org](https://a2ui.org)."
+      }
+    ],
+    "menus": {
+      "commandPalette": [
+        {
+          "command": "a2ui.previewText",
+          "when": "false"
+        }
+      ],
+      "editor/title": [
+        {
+          "command": "a2ui.previewFile",
+          "when": "resourceFilename =~ /\\.a2ui\\.(json|jsonl)$/",
+          "group": "navigation"
+        }
+      ]
+    },
+    "jsonValidation": [
+      {
+        "fileMatch": [
+          "a2ui.config.json",
+          ".a2ui/config.json"
+        ],
+        "url": "./schemas/a2ui.config.schema.json"
+      }
+    ],
+    "configuration": {
+      "title": "A2UI Studio",
+      "properties": {
+        "a2ui.provider": {
+          "type": "string",
+          "enum": [
+            "copilot",
+            "anthropic",
+            "openai",
+            "gemini",
+            "ollama",
+            "a2a"
+          ],
+          "enumDescriptions": [
+            "GitHub Copilot via the VS Code Language Model API (no API key needed)",
+            "Anthropic Claude (API key required)",
+            "OpenAI (API key required)",
+            "Google Gemini (API key required)",
+            "Ollama running locally (no API key needed)",
+            "Remote A2UI-capable A2A agent (experimental, requires a2ui.a2aEndpoint)"
+          ],
+          "default": "copilot",
+          "description": "Which AI provider generates A2UI messages."
+        },
+        "a2ui.model": {
+          "type": "string",
+          "default": "",
+          "description": "Model ID override. Leave empty for the provider default (Copilot: best available chat model, Anthropic: claude-sonnet-5, OpenAI: gpt-4o, Gemini: gemini-2.0-flash, Ollama: llama3.2)."
+        },
+        "a2ui.temperature": {
+          "type": "number",
+          "default": 0.7,
+          "minimum": 0,
+          "maximum": 2,
+          "description": "Sampling temperature for generation. Profiles in a2ui.config.json can override this."
+        },
+        "a2ui.maxTokens": {
+          "type": "number",
+          "default": 8192,
+          "minimum": 256,
+          "maximum": 128000,
+          "description": "Maximum output tokens per turn. Profiles in a2ui.config.json can override this."
+        },
+        "a2ui.systemPromptAppend": {
+          "type": "string",
+          "default": "",
+          "editPresentation": "multilineText",
+          "description": "Extra instructions appended to the A2UI system prompt (brand voice, design rules, preferred colors). a2ui.config.json can override this."
+        },
+        "a2ui.ollamaUrl": {
+          "type": "string",
+          "default": "http://localhost:11434",
+          "description": "Base URL of the local Ollama server."
+        },
+        "a2ui.baseUrls": {
+          "type": "object",
+          "default": {},
+          "markdownDescription": "Custom API base URLs per provider \u2014 for enterprise gateways/proxies (AWS Bedrock proxies, LiteLLM, etc.). The studio also fetches the live model list from these URLs (`{baseUrl}/v1/models`), so nothing is hardcoded. API keys become optional when a gateway is set (the gateway does its own auth). Profiles in `a2ui.config.json` can override per profile.",
+          "properties": {
+            "anthropic": {
+              "type": "string",
+              "description": "Anthropic-compatible gateway base URL (replaces https://api.anthropic.com)."
+            },
+            "openai": {
+              "type": "string",
+              "description": "OpenAI-compatible gateway base URL (replaces https://api.openai.com)."
+            },
+            "gemini": {
+              "type": "string",
+              "description": "Gemini-compatible gateway base URL (replaces https://generativelanguage.googleapis.com)."
+            }
+          },
+          "additionalProperties": false
+        },
+        "a2ui.a2aEndpoint": {
+          "type": "string",
+          "default": "",
+          "description": "URL of a remote A2UI-capable A2A agent (JSON-RPC message/stream). Used by the experimental \"Remote A2A agent\" provider."
+        },
+        "a2ui.autoRepair": {
+          "type": "boolean",
+          "default": true,
+          "description": "When the model emits invalid A2UI messages, automatically send one corrective follow-up turn asking it to fix them."
+        }
+      }
+    }
+  },
+  "scripts": {
+    "build": "node esbuild.js",
+    "watch": "node esbuild.js --watch",
+    "test": "node test/run-tests.js",
+    "package": "node esbuild.js --production && vsce package --no-dependencies"
+  },
+  "devDependencies": {
+    "@types/node": "^20.0.0",
+    "@types/vscode": "^1.95.0",
+    "@vscode/vsce": "^3.0.0",
+    "esbuild": "^0.24.0",
+    "typescript": "^5.6.0"
+  }
+}
