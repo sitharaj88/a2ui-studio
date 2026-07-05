@@ -23,6 +23,57 @@
   --shadow: 0 2px 6px rgba(0, 0, 0, 0.12), 0 12px 32px rgba(0, 0, 0, 0.14);
   --shadow-sm: 0 1px 3px rgba(0, 0, 0, 0.14);
   --mono: var(--vscode-editor-font-family, ui-monospace, monospace);
+
+  /* ---- MD3 foundation tokens (A2UI rendered components) ---- */
+  /* Tonal surfaces: fg mixed into bg so both light & dark themes get real tone steps */
+  --surface: var(--bg);
+  --surface-container-low: color-mix(in srgb, var(--fg) 3%, var(--bg));
+  --surface-container: color-mix(in srgb, var(--fg) 5%, var(--bg));
+  --surface-container-high: color-mix(in srgb, var(--fg) 8%, var(--bg));
+  --surface-container-highest: color-mix(in srgb, var(--fg) 12%, var(--bg));
+  --outline-soft: color-mix(in srgb, var(--fg) 12%, transparent);
+  --outline-strong: color-mix(in srgb, var(--fg) 24%, transparent);
+
+  /* Elevation levels 1–3 (ambient + key). Neutral black reads correctly on both themes. */
+  --elev-1: 0 1px 2px rgba(0, 0, 0, 0.10), 0 1px 3px 1px rgba(0, 0, 0, 0.06);
+  --elev-2: 0 1px 2px rgba(0, 0, 0, 0.12), 0 3px 8px 2px rgba(0, 0, 0, 0.09);
+  --elev-3: 0 2px 4px rgba(0, 0, 0, 0.14), 0 8px 20px 4px rgba(0, 0, 0, 0.12);
+
+  /* State-layer opacities (MD3): consume as
+     color-mix(in srgb, var(--accent, var(--accent-a)) var(--state-hover), <base>) */
+  --state-hover: 8%;
+  --state-press: 12%;
+  --state-focus: 12%;
+  --state-drag: 16%;
+
+  /* 4px spacing grid */
+  --sp-1: 4px;
+  --sp-2: 8px;
+  --sp-3: 12px;
+  --sp-4: 16px;
+  --sp-5: 20px;
+  --sp-6: 24px;
+
+  /* Radius scale (sm/md already exist as --radius-sm: 8px / --radius: 12px) */
+  --radius-lg: 16px;
+  --radius-full: 999px;
+
+  /* Motion (body.no-motion kill-switch disables these globally) */
+  --ease-standard: cubic-bezier(0.2, 0, 0, 1);
+  --ease-decelerate: cubic-bezier(0.05, 0.7, 0.1, 1);
+  --dur-short: 120ms;
+  --dur-medium: 220ms;
+  --dur-long: 350ms;
+
+  /* Type scale (MD3 roles scaled to VS Code's 13px base) */
+  --type-display-size: 26px;   --type-display-wt: 750; --type-display-ls: -0.5px;  --type-display-lh: 1.2;
+  --type-headline-size: 20px;  --type-headline-wt: 700; --type-headline-ls: -0.25px; --type-headline-lh: 1.25;
+  --type-title-lg-size: 16px;  --type-title-wt: 650;   --type-title-ls: 0px;       --type-title-lh: 1.3;
+  --type-title-md-size: 14px;
+  --type-title-sm-size: 13px;
+  --type-body-size: 13px;      --type-body-wt: 400;    --type-body-ls: 0.1px;      --type-body-lh: 1.55;
+  --type-label-size: 11px;     --type-label-wt: 650;   --type-label-ls: 0.4px;
+  --type-caption-size: 11.5px; --type-caption-ls: 0.15px;
 }
 
 * { box-sizing: border-box; }
@@ -575,55 +626,116 @@ button { font-family: inherit; }
    A2UI rendered components
    -------------------------------------------------------------------------- */
 .a2-placeholder {
-  height: 15px; border-radius: 6px; min-width: 60px;
-  background: linear-gradient(90deg,
-    color-mix(in srgb, var(--fg) 7%, transparent) 25%,
-    color-mix(in srgb, var(--fg) 14%, transparent) 45%,
-    color-mix(in srgb, var(--fg) 7%, transparent) 65%);
-  background-size: 220% 100%;
-  animation: shimmer 1.3s infinite linear;
+  height: 16px; border-radius: var(--radius-sm); min-width: 60px;
+  background:
+    linear-gradient(90deg,
+      transparent 25%,
+      color-mix(in srgb, var(--fg) 7%, transparent) 45%,
+      transparent 65%),
+    var(--surface-container-high);
+  background-size: 220% 100%, auto;
+  animation: shimmer 1.4s infinite var(--ease-standard);
 }
 
 .a2-placeholder.short { width: 55%; }
 
-@keyframes shimmer { from { background-position: 130% 0; } to { background-position: -90% 0; } }
+@keyframes shimmer { from { background-position: 130% 0, 0 0; } to { background-position: -90% 0, 0 0; } }
 
-.a2-text { line-height: 1.55; animation: comp-in 0.25s ease; overflow-wrap: anywhere; }
-.a2-text-h1 { font-size: 24px; font-weight: 800; letter-spacing: -0.4px; }
-.a2-text-h2 { font-size: 19px; font-weight: 750; letter-spacing: -0.2px; }
-.a2-text-h3 { font-size: 16px; font-weight: 700; }
-.a2-text-h4 { font-size: 14px; font-weight: 650; }
-.a2-text-h5 { font-size: 13px; font-weight: 650; }
-.a2-text-caption { font-size: 11.5px; color: var(--muted); }
-.a2-text-body { font-size: 13px; }
+.a2-text { font-size: var(--type-body-size); font-weight: var(--type-body-wt); letter-spacing: var(--type-body-ls); line-height: var(--type-body-lh); animation: comp-in var(--dur-medium) var(--ease-decelerate); overflow-wrap: anywhere; }
+
+/* Display / h1 */
+.a2-text-h1, .a2-text-display { font-size: var(--type-display-size); font-weight: var(--type-display-wt); letter-spacing: var(--type-display-ls); line-height: var(--type-display-lh); }
+/* Headline / h2 */
+.a2-text-h2, .a2-text-headline { font-size: var(--type-headline-size); font-weight: var(--type-headline-wt); letter-spacing: var(--type-headline-ls); line-height: var(--type-headline-lh); }
+/* Title large / h3 */
+.a2-text-h3, .a2-text-title { font-size: var(--type-title-lg-size); font-weight: var(--type-title-wt); letter-spacing: var(--type-title-ls); line-height: var(--type-title-lh); }
+/* Title medium / h4 */
+.a2-text-h4 { font-size: var(--type-title-md-size); font-weight: var(--type-title-wt); letter-spacing: var(--type-title-ls); line-height: var(--type-title-lh); }
+/* Title small / h5 */
+.a2-text-h5 { font-size: var(--type-title-sm-size); font-weight: var(--type-title-wt); letter-spacing: var(--type-title-ls); line-height: var(--type-title-lh); }
+/* Label (MD3 label-large): also reusable by field labels / buttons via class add */
+.a2-text-label { font-size: var(--type-label-size); font-weight: var(--type-label-wt); letter-spacing: var(--type-label-ls); text-transform: uppercase; color: var(--muted); }
+.a2-text-caption { font-size: var(--type-caption-size); letter-spacing: var(--type-caption-ls); color: var(--muted); }
+.a2-text-body { font-size: var(--type-body-size); }
+
 .a2-text code {
   font-family: var(--mono); font-size: 0.9em;
-  background: color-mix(in srgb, var(--fg) 9%, transparent);
-  padding: 1px 5px; border-radius: 4px;
+  background: var(--surface-container-highest);
+  padding: 1px 5px; border-radius: var(--sp-1);
 }
 
 @keyframes comp-in { from { opacity: 0; transform: translateY(3px); } to { opacity: 1; transform: none; } }
 
-.a2-row { display: flex; flex-direction: row; gap: 12px; min-width: 0; flex-wrap: wrap; }
-.a2-column { display: flex; flex-direction: column; gap: 12px; min-width: 0; }
-.a2-list { display: flex; gap: 10px; }
-.a2-list-vertical { flex-direction: column; max-height: 380px; overflow-y: auto; padding-right: 4px; }
-.a2-list-horizontal { flex-direction: row; overflow-x: auto; padding-bottom: 4px; }
+.a2-row { display: flex; flex-direction: row; gap: var(--sp-3); min-width: 0; flex-wrap: wrap; }
+.a2-column { display: flex; flex-direction: column; gap: var(--sp-3); min-width: 0; }
+
+.a2-list { display: flex; gap: var(--sp-3); scrollbar-width: thin; }
+
+.a2-list-vertical {
+  flex-direction: column;
+  max-height: 380px; overflow-y: auto;
+  padding-right: var(--sp-1);
+  scroll-padding-block: var(--sp-1);
+}
+
+/* Card lists get breathing room so elevation shadows aren't clipped. */
+.a2-list-vertical:has(> .a2-card) { padding: var(--sp-1) var(--sp-2) var(--sp-1) var(--sp-1); }
+
+/* Field lists get symmetric side room so slider thumb halos (up to 11px)
+   aren't clipped by the scroll container. */
+.a2-list-vertical:has(> .a2-field) { padding: var(--sp-1) var(--sp-3); }
+
+.a2-list-horizontal {
+  flex-direction: row;
+  overflow-x: auto;
+  padding-bottom: var(--sp-2);
+  scroll-snap-type: x proximity;
+  scroll-padding-inline: var(--sp-1);
+}
+
+.a2-list-horizontal > * { scroll-snap-align: start; }
+
+.a2-list::-webkit-scrollbar { width: 5px; height: 5px; }
+
+.a2-list::-webkit-scrollbar-thumb {
+  background: color-mix(in srgb, var(--accent, var(--accent-a)) 30%, transparent);
+  background-clip: border-box; border: 0; border-radius: 99px;
+}
+
+.a2-list::-webkit-scrollbar-thumb:hover {
+  background: color-mix(in srgb, var(--accent, var(--accent-a)) 50%, transparent);
+  background-clip: border-box; border: 0;
+}
 
 .a2-card {
-  border: 1px solid var(--border);
+  border: 1px solid var(--outline-soft);
   border-radius: var(--radius);
-  padding: 16px;
-  background: color-mix(in srgb, var(--bg) 55%, transparent);
-  box-shadow: var(--shadow-sm);
+  padding: var(--sp-4);
+  background: var(--surface-container-low);
+  box-shadow: var(--elev-1);
+  transition: box-shadow var(--dur-medium) var(--ease-standard),
+              background var(--dur-medium) var(--ease-standard),
+              border-color var(--dur-medium) var(--ease-standard);
+}
+
+.a2-card:hover {
+  background: var(--surface-container);
+  border-color: color-mix(in srgb, var(--accent, var(--accent-a)) 22%, var(--outline-soft));
+  box-shadow: var(--elev-2);
 }
 
 .surface-body > .a2-card { border: none; padding: 0; background: none; box-shadow: none; }
+.surface-body > .a2-card:hover { background: none; box-shadow: none; border-color: transparent; }
 
-.a2-divider-horizontal { height: 1px; background: var(--border); margin: 2px 0; }
-.a2-divider-vertical { width: 1px; align-self: stretch; background: var(--border); margin: 0 2px; }
+.a2-divider-horizontal { height: 1px; background: var(--outline-soft); border-radius: var(--radius-full); margin: var(--sp-1) 0; }
+.a2-divider-vertical { width: 1px; align-self: stretch; background: var(--outline-soft); border-radius: var(--radius-full); margin: 0 var(--sp-1); }
 
-.a2-image { border-radius: var(--radius-sm); max-width: 100%; display: block; background: color-mix(in srgb, var(--fg) 6%, transparent); }
+.a2-image {
+  border-radius: var(--radius-sm); max-width: 100%; display: block;
+  background: var(--surface-container);
+  outline: 1px solid color-mix(in srgb, var(--fg) 10%, transparent);
+  outline-offset: -1px;
+}
 .a2-image-icon { width: 24px; height: 24px; }
 .a2-image-avatar { width: 44px; height: 44px; border-radius: 50%; }
 .a2-image-smallFeature { width: 120px; height: 80px; }
@@ -646,103 +758,299 @@ button { font-family: inherit; }
 
 .a2-icon { width: 16px; height: 16px; }
 
-.a2-video { width: 100%; border-radius: var(--radius-sm); }
-.a2-audio { display: flex; flex-direction: column; gap: 6px; }
-.a2-audio audio { width: 100%; }
-.a2-audio-desc { font-size: 12px; color: var(--muted); }
+.a2-video { width: 100%; display: block; }
 
+/* Tonal accent container for the audio row. */
+.a2-audio {
+  display: flex; flex-direction: column; gap: var(--sp-2);
+  padding: var(--sp-3);
+  border-radius: var(--radius);
+  background: color-mix(in srgb, var(--accent, var(--accent-a)) 7%, var(--bg));
+  outline: 1px solid color-mix(in srgb, var(--accent, var(--accent-a)) 16%, transparent);
+  outline-offset: -1px;
+}
+
+.a2-audio audio { width: 100%; height: 36px; border-radius: 99px; }
+
+.a2-audio-desc {
+  font-size: 12px; font-weight: 600;
+  color: color-mix(in srgb, var(--accent, var(--accent-a)) 45%, var(--fg));
+}
+
+/* MD3 pointer ripple (attachRipple in main.js) */
+.a2-ripple-host { position: relative; overflow: hidden; }
+
+.a2-ripple {
+  position: absolute;
+  border-radius: 50%;
+  background: currentColor;
+  transform: scale(0);
+  opacity: 0.16;
+  pointer-events: none;
+  animation: a2-ripple 0.5s var(--ease-standard) forwards;
+}
+
+@keyframes a2-ripple { to { transform: scale(1); opacity: 0; } }
+
+/* MD3 shapes: filled = primary, tonal = default, text = borderless. */
 .a2-button {
-  display: inline-flex; align-items: center; justify-content: center; gap: 8px;
-  padding: 8px 18px; border-radius: 9px;
-  border: 1px solid var(--border);
-  background: color-mix(in srgb, var(--fg) 5%, transparent);
-  color: var(--fg);
+  position: relative;
+  display: inline-flex; align-items: center; justify-content: center; gap: var(--sp-2);
+  min-height: 36px; padding: 8px var(--sp-5);
+  border: none; border-radius: 99px;
+  color: color-mix(in srgb, var(--accent, var(--accent-a)) 55%, var(--fg));
+  background: color-mix(in srgb, var(--accent, var(--accent-a)) 14%, var(--bg));
   font-size: 13px; font-weight: 600; cursor: pointer;
-  transition: transform 0.12s ease, box-shadow 0.12s ease, filter 0.12s ease;
+  transition: box-shadow 0.15s var(--ease-standard), background 0.15s var(--ease-standard), filter 0.15s var(--ease-standard);
   align-self: flex-start;
 }
 
 .a2-button .a2-text { font-size: inherit; font-weight: inherit; }
-.a2-button:hover:not(:disabled) { transform: translateY(-1px); box-shadow: var(--shadow-sm); }
-.a2-button:active:not(:disabled) { transform: none; }
 
-.a2-button-primary {
-  border: none; color: #fff;
-  background: linear-gradient(135deg, var(--accent, var(--accent-a)), color-mix(in srgb, var(--accent, var(--accent-a)) 60%, var(--accent-b)));
-  box-shadow: 0 3px 12px color-mix(in srgb, var(--accent, var(--accent-a)) 40%, transparent);
+/* State layer (hover 8% / press 12% of the label color). */
+.a2-button::before {
+  content: ""; position: absolute; inset: 0; border-radius: inherit;
+  background: currentColor; opacity: 0; pointer-events: none;
+  transition: opacity 0.15s var(--ease-standard);
 }
 
-.a2-button-primary:hover:not(:disabled) { filter: brightness(1.07); }
+.a2-button:hover:not(:disabled)::before { opacity: 0.08; }
+.a2-button:active:not(:disabled)::before { opacity: 0.12; }
+.a2-button:hover:not(:disabled) { box-shadow: var(--elev-1); }
+
+.a2-button:focus-visible {
+  outline: none;
+  box-shadow: 0 0 0 3px color-mix(in srgb, var(--accent, var(--accent-a)) 30%, transparent);
+}
+
+.a2-button-primary {
+  color: #fff;
+  background: linear-gradient(135deg, var(--accent, var(--accent-a)), color-mix(in srgb, var(--accent, var(--accent-a)) 60%, var(--accent-b)));
+  box-shadow: 0 1px 3px color-mix(in srgb, var(--accent, var(--accent-a)) 35%, transparent);
+}
+
+.a2-button-primary:hover:not(:disabled) {
+  filter: brightness(1.06);
+  box-shadow: 0 3px 12px color-mix(in srgb, var(--accent, var(--accent-a)) 45%, transparent);
+}
+
 .a2-button-primary .a2-icon-wrap { background: rgba(255, 255, 255, 0.18); color: #fff; width: 22px; height: 22px; }
 
-.a2-button-borderless { border: none; background: none; color: var(--accent, var(--accent-a)); padding: 6px 10px; }
-.a2-button:disabled { opacity: 0.5; cursor: not-allowed; }
+.a2-button-borderless {
+  background: none;
+  color: var(--accent, var(--accent-a));
+  min-height: 32px; padding: 6px var(--sp-3);
+}
 
+.a2-button-borderless:hover:not(:disabled) { box-shadow: none; }
+
+/* MD3 disabled: 12% container, 38% overall label opacity. Overrides the
+   variant gradients because :disabled adds specificity. */
+.a2-button:disabled {
+  opacity: 0.38; cursor: not-allowed;
+  color: var(--fg);
+  background: color-mix(in srgb, var(--fg) 12%, transparent);
+  box-shadow: none;
+}
+
+/* ---- Fields: MD3 outlined text fields with floating label --------------- */
 .a2-field { display: flex; flex-direction: column; gap: 6px; min-width: 0; }
 
+/* Mini-heading style — still used by ChoicePicker and Slider headers. */
 .a2-field-label {
   font-size: 11px; font-weight: 650; letter-spacing: 0.3px; text-transform: uppercase;
   color: var(--muted);
 }
 
+.a2-field-box {
+  position: relative; display: flex; min-width: 0;
+  border-radius: 10px;
+  background: color-mix(in srgb, var(--input-bg) 55%, transparent);
+}
+
 .a2-input {
-  background: var(--input-bg); color: var(--input-fg);
-  border: 1px solid var(--input-border); border-radius: 9px;
-  padding: 8px 12px; font-size: 13px; font-family: inherit;
-  outline: none; width: 100%;
-  transition: border-color 0.15s ease, box-shadow 0.15s ease;
+  background: transparent; color: var(--input-fg);
+  border: none; border-radius: 10px;
+  padding: 12px 14px; font-size: 13px; font-family: inherit;
+  outline: none; width: 100%; min-height: 44px;
 }
 
-.a2-input:focus {
+.a2-input.invalid { caret-color: var(--error); }
+.a2-input::-webkit-calendar-picker-indicator { opacity: 0.55; cursor: pointer; }
+.a2-textarea { resize: vertical; min-height: 88px; line-height: 1.5; }
+
+/* Notched outline: three border segments; the notch hosts the floating label
+   and opens its top edge when the label floats. Works over any background. */
+.a2-field-outline { position: absolute; inset: 0; display: flex; pointer-events: none; }
+
+.a2-outline-lead, .a2-outline-notch, .a2-outline-trail {
+  border: 1px solid var(--input-border);
+  transition: border-color 0.15s ease;
+}
+
+.a2-outline-lead { width: 12px; flex: none; border-right: none; border-radius: 10px 0 0 10px; }
+
+.a2-outline-notch {
+  flex: none; max-width: calc(100% - 26px);
+  border-left: none; border-right: none;
+  padding: 0 4px;
+  display: flex; align-items: flex-start;
+}
+
+.a2-outline-notch.empty { padding: 0; }
+.a2-outline-trail { flex: 1; min-width: 12px; border-left: none; border-radius: 0 10px 10px 0; }
+
+.a2-outline-notch .a2-field-label {
+  font-size: 13px; font-weight: 400; letter-spacing: 0; text-transform: none;
+  line-height: 1; color: var(--muted);
+  max-width: 100%; overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
+  transform: translateY(15px);
+  transition: transform 0.16s cubic-bezier(0.2, 0, 0, 1),
+              font-size 0.16s cubic-bezier(0.2, 0, 0, 1),
+              color 0.16s ease;
+}
+
+/* longText: label rests on the first line, not the vertical center. */
+.a2-field-area .a2-outline-notch .a2-field-label { transform: translateY(14px); }
+
+.a2-field:hover .a2-outline-lead,
+.a2-field:hover .a2-outline-notch,
+.a2-field:hover .a2-outline-trail {
+  border-color: color-mix(in srgb, var(--fg) 40%, var(--input-border));
+}
+
+.a2-field:focus-within .a2-outline-lead,
+.a2-field:focus-within .a2-outline-notch,
+.a2-field:focus-within .a2-outline-trail {
   border-color: var(--accent, var(--focus));
-  box-shadow: 0 0 0 3px color-mix(in srgb, var(--accent, var(--focus)) 18%, transparent);
+  border-width: 2px;
 }
 
-.a2-input.invalid { border-color: var(--error); }
-.a2-textarea { resize: vertical; min-height: 74px; }
+.a2-field.has-error .a2-outline-lead,
+.a2-field.has-error .a2-outline-notch,
+.a2-field.has-error .a2-outline-trail { border-color: var(--error); }
 
-.a2-field-error { font-size: 11px; color: var(--error); display: flex; align-items: center; gap: 4px; }
+/* Float: label rises onto the border line, the notch top opens under it. */
+.a2-field:focus-within .a2-outline-notch .a2-field-label,
+.a2-field.has-value .a2-outline-notch .a2-field-label {
+  transform: translateY(-5px);
+  font-size: 11px; font-weight: 600; letter-spacing: 0.2px;
+}
 
-.a2-checkbox { display: flex; align-items: center; gap: 9px; cursor: pointer; user-select: none; }
-.a2-checkbox input { display: none; }
+.a2-field:focus-within .a2-outline-notch .a2-field-label { color: var(--accent, var(--focus)); }
+.a2-field.has-error .a2-outline-notch .a2-field-label { color: var(--error); }
+
+.a2-field:focus-within .a2-outline-notch,
+.a2-field.has-value .a2-outline-notch { border-top-color: transparent; }
+
+.a2-field-error {
+  font-size: 11px; color: var(--error);
+  display: flex; align-items: center; gap: 4px;
+  padding: 0 14px;
+  animation: comp-in 0.18s ease;
+}
+
+/* ---- CheckBox: MD3 with state layer + check draw ------------------------ */
+.a2-checkbox { position: relative; display: flex; align-items: center; gap: 10px; cursor: pointer; user-select: none; }
+
+/* Visually hidden (not display:none) so :focus-visible still works. */
+.a2-checkbox input { position: absolute; opacity: 0; width: 1px; height: 1px; margin: 0; pointer-events: none; }
 
 .a2-checkbox-box {
   width: 18px; height: 18px; border-radius: 5px;
-  border: 1.5px solid var(--input-border);
+  border: 2px solid color-mix(in srgb, var(--fg) 42%, var(--input-border));
   display: grid; place-items: center; flex: none;
-  transition: background 0.15s ease, border-color 0.15s ease;
+  position: relative;
+  transition: background 0.16s ease, border-color 0.16s ease;
 }
 
-.a2-checkbox-box .a2-icon { width: 11px; height: 11px; color: #fff; opacity: 0; transition: opacity 0.12s; }
+/* 40px state-layer circle. */
+.a2-checkbox-box::before {
+  content: ''; position: absolute; inset: -11px; border-radius: 50%;
+  background: color-mix(in srgb, var(--fg) 9%, transparent);
+  opacity: 0; transform: scale(0.55);
+  transition: opacity 0.16s ease, transform 0.16s ease;
+}
+
+.a2-checkbox:hover .a2-checkbox-box::before,
+.a2-checkbox input:focus-visible + .a2-checkbox-box::before { opacity: 1; transform: scale(1); }
+.a2-checkbox:active .a2-checkbox-box::before { opacity: 1; transform: scale(1.15); }
+
+.a2-checkbox input:checked + .a2-checkbox-box::before {
+  background: color-mix(in srgb, var(--accent, var(--accent-a)) 15%, transparent);
+}
+
+.a2-checkbox-box .a2-icon { width: 12px; height: 12px; color: #fff; }
+.a2-checkbox-box .a2-icon path { stroke-dasharray: 24; stroke-dashoffset: 24; stroke-width: 2.4; }
 
 .a2-checkbox input:checked + .a2-checkbox-box {
   background: var(--accent, var(--accent-a));
   border-color: var(--accent, var(--accent-a));
 }
 
-.a2-checkbox input:checked + .a2-checkbox-box .a2-icon { opacity: 1; }
-.a2-checkbox-label { font-size: 13px; }
-
-.a2-chips { display: flex; flex-wrap: wrap; gap: 7px; }
-
-.a2-chip {
-  border: 1px solid var(--border);
-  background: color-mix(in srgb, var(--fg) 4%, transparent);
-  color: var(--fg);
-  border-radius: 99px; padding: 5.5px 14px;
-  font-size: 12px; font-weight: 550; cursor: pointer;
-  transition: all 0.14s ease;
+.a2-checkbox input:checked + .a2-checkbox-box .a2-icon path {
+  stroke-dashoffset: 0;
+  transition: stroke-dashoffset 0.24s cubic-bezier(0.2, 0, 0, 1) 0.06s;
 }
 
-.a2-chip:hover { border-color: color-mix(in srgb, var(--accent, var(--accent-a)) 55%, var(--border)); }
+.a2-checkbox-label { font-size: 13px; }
+
+/* ---- ChoicePicker: filter chips + segmented buttons --------------------- */
+.a2-chips { display: flex; flex-wrap: wrap; gap: 8px; }
+
+.a2-chip {
+  display: inline-flex; align-items: center;
+  border: 1px solid color-mix(in srgb, var(--fg) 24%, var(--border));
+  background: transparent; color: var(--fg);
+  border-radius: 9px; padding: 6px 14px;
+  font-size: 12px; font-weight: 550; cursor: pointer;
+  transition: background 0.14s ease, border-color 0.14s ease, color 0.14s ease;
+}
+
+.a2-chip:hover { background: color-mix(in srgb, var(--fg) 6%, transparent); }
+.a2-chip:focus-visible { outline: 2px solid var(--accent, var(--focus)); outline-offset: 1px; }
+
+/* Leading check: collapsed by default, unfolds on selection. */
+.a2-chip-check {
+  width: 0; height: 14px; opacity: 0; margin-right: 0; flex: none;
+  transition: width 0.16s cubic-bezier(0.2, 0, 0, 1),
+              margin 0.16s cubic-bezier(0.2, 0, 0, 1),
+              opacity 0.12s ease;
+}
+
+.a2-chip.selected .a2-chip-check { width: 14px; margin-right: 7px; opacity: 1; }
 
 .a2-chip.selected {
-  background: color-mix(in srgb, var(--accent, var(--accent-a)) 16%, transparent);
-  border-color: var(--accent, var(--accent-a));
-  color: var(--accent, var(--accent-a));
+  background: color-mix(in srgb, var(--accent, var(--accent-a)) 17%, transparent);
+  border-color: color-mix(in srgb, var(--accent, var(--accent-a)) 45%, transparent);
+  color: color-mix(in srgb, var(--accent, var(--accent-a)) 72%, var(--fg));
   font-weight: 650;
 }
 
+/* mutuallyExclusive → MD3 segmented button group (connected pill). */
+.a2-segmented { gap: 0; flex-wrap: nowrap; max-width: 100%; overflow-x: auto; align-self: flex-start; }
+
+.a2-segmented .a2-chip { position: relative; border-radius: 0; margin-left: -1px; padding: 7px 16px; flex: none; }
+.a2-segmented .a2-chip:first-child { margin-left: 0; border-radius: 999px 0 0 999px; padding-left: 18px; }
+.a2-segmented .a2-chip:last-child { border-radius: 0 999px 999px 0; padding-right: 18px; }
+.a2-segmented .a2-chip:only-child { border-radius: 999px; }
+.a2-segmented .a2-chip:hover { border-color: color-mix(in srgb, var(--fg) 24%, var(--border)); }
+
+/* Segmented chips sit inside a scroll container that clips outlines, so the
+   focus indicator is drawn inset instead. */
+.a2-segmented .a2-chip:focus-visible {
+  outline: none;
+  box-shadow: inset 0 0 0 2px var(--accent, var(--focus));
+  z-index: 2;
+}
+
+.a2-segmented .a2-chip.selected {
+  background: color-mix(in srgb, var(--accent, var(--accent-a)) 20%, transparent);
+  border-color: color-mix(in srgb, var(--fg) 24%, var(--border));
+  z-index: 1;
+}
+
+/* ---- Slider: MD3 4px track, 20px thumb, halo, drag value chip ----------- */
 .a2-slider-header { display: flex; align-items: center; justify-content: space-between; }
 
 .a2-slider-value {
@@ -752,64 +1060,155 @@ button { font-family: inherit; }
   border-radius: 6px; padding: 1px 8px;
 }
 
+.a2-slider-wrap { position: relative; }
+
 .a2-slider {
   -webkit-appearance: none; appearance: none;
-  width: 100%; height: 5px; border-radius: 99px;
-  background: linear-gradient(90deg, var(--accent, var(--accent-a)) var(--pct, 0%), color-mix(in srgb, var(--fg) 14%, transparent) var(--pct, 0%));
+  display: block; width: 100%; height: 20px; margin: 2px 0 0;
+  background: transparent;
   outline: none; cursor: pointer;
+}
+
+/* --pct is set on .a2-slider-wrap and inherited here. */
+.a2-slider::-webkit-slider-runnable-track {
+  height: 4px; border-radius: 99px;
+  background: linear-gradient(90deg,
+    var(--accent, var(--accent-a)) var(--pct, 0%),
+    color-mix(in srgb, var(--accent, var(--accent-a)) 25%, transparent) var(--pct, 0%));
 }
 
 .a2-slider::-webkit-slider-thumb {
   -webkit-appearance: none;
-  width: 16px; height: 16px; border-radius: 50%;
-  background: #fff;
-  border: 2.5px solid var(--accent, var(--accent-a));
-  box-shadow: var(--shadow-sm);
+  width: 20px; height: 20px; margin-top: -8px; border-radius: 50%;
+  background: var(--accent, var(--accent-a));
+  border: 3px solid var(--bg);
+  box-shadow: 0 1px 4px rgba(0, 0, 0, 0.3),
+              0 0 0 0 color-mix(in srgb, var(--accent, var(--accent-a)) 13%, transparent);
+  transition: box-shadow 0.15s ease;
   cursor: grab;
 }
 
-.a2-tabs { display: flex; flex-direction: column; gap: 12px; }
-.a2-tabbar { display: flex; gap: 4px; border-bottom: 1px solid var(--border); }
-
-.a2-tab {
-  background: none; border: none;
-  border-bottom: 2px solid transparent;
-  color: var(--muted);
-  font-size: 13px; font-weight: 600;
-  padding: 7px 13px; cursor: pointer;
-  transition: color 0.14s ease;
-  margin-bottom: -1px;
+.a2-slider:hover::-webkit-slider-thumb {
+  box-shadow: 0 1px 4px rgba(0, 0, 0, 0.3),
+              0 0 0 8px color-mix(in srgb, var(--accent, var(--accent-a)) 13%, transparent);
 }
 
-.a2-tab:hover { color: var(--fg); }
-.a2-tab.active { color: var(--accent, var(--accent-a)); border-bottom-color: var(--accent, var(--accent-a)); }
+.a2-slider:active::-webkit-slider-thumb,
+.a2-slider:focus-visible::-webkit-slider-thumb {
+  cursor: grabbing;
+  box-shadow: 0 1px 4px rgba(0, 0, 0, 0.3),
+              0 0 0 11px color-mix(in srgb, var(--accent, var(--accent-a)) 19%, transparent);
+}
+
+/* Value chip riding the thumb; visible while dragging / keyboard focus. */
+.a2-slider-bubble {
+  position: absolute; top: -20px;
+  left: clamp(10px, var(--pct, 0%), calc(100% - 10px));
+  transform: translateX(-50%) translateY(4px) scale(0.8);
+  background: var(--accent, var(--accent-a)); color: #fff;
+  font-family: var(--mono); font-size: 10.5px; font-weight: 700;
+  padding: 3px 8px; border-radius: 8px;
+  box-shadow: var(--shadow-sm);
+  opacity: 0; pointer-events: none; white-space: nowrap;
+  transition: opacity 0.12s ease, transform 0.12s ease, left 0.06s linear;
+}
+
+.a2-slider-bubble::after {
+  content: ''; position: absolute; left: 50%; bottom: -4px;
+  transform: translateX(-50%);
+  border: 4px solid transparent; border-bottom: none;
+  border-top-color: var(--accent, var(--accent-a));
+}
+
+.a2-slider:active + .a2-slider-bubble,
+.a2-slider:focus-visible + .a2-slider-bubble {
+  opacity: 1;
+  transform: translateX(-50%) translateY(0) scale(1);
+}
+
+.a2-tabs { display: flex; flex-direction: column; gap: var(--sp-3); }
+
+.a2-tabbar {
+  position: relative;
+  display: flex; gap: var(--sp-1);
+  border-bottom: 1px solid var(--border);
+  overflow-x: auto;
+  scrollbar-width: none;
+}
+
+.a2-tabbar::-webkit-scrollbar { display: none; }
+
+.a2-tab {
+  position: relative;
+  background: none; border: none;
+  border-radius: var(--sp-2) var(--sp-2) 0 0;
+  color: var(--muted);
+  font-size: 13px; font-weight: 600;
+  padding: 9px 14px; cursor: pointer;
+  transition: color 0.15s var(--ease-standard), background 0.15s var(--ease-standard);
+}
+
+.a2-tab:hover { color: var(--fg); background: color-mix(in srgb, var(--fg) 5%, transparent); }
+
+.a2-tab:focus-visible {
+  outline: none;
+  box-shadow: inset 0 0 0 2px color-mix(in srgb, var(--accent, var(--accent-a)) 45%, transparent);
+}
+
+.a2-tab.active { color: var(--accent, var(--accent-a)); }
+
+.a2-tab-indicator {
+  position: absolute; bottom: 0; left: 0;
+  height: 3px; width: 0;
+  border-radius: 3px 3px 0 0;
+  background: var(--accent, var(--accent-a));
+  pointer-events: none;
+  transition: transform 0.28s var(--ease-standard), width 0.28s var(--ease-standard), opacity 0.15s ease;
+}
+
+.a2-tabpanel { animation: comp-in 0.25s var(--ease-standard); }
 
 .a2-modal-overlay {
   position: fixed; inset: 0; z-index: 100;
-  background: rgba(0, 0, 0, 0.45);
-  backdrop-filter: blur(3px);
+  background: color-mix(in srgb, #000 45%, transparent);
+  backdrop-filter: blur(4px);
   display: grid; place-items: center;
-  animation: comp-in 0.18s ease;
+  animation: a2-scrim-in 0.25s var(--ease-standard);
 }
+
+@keyframes a2-scrim-in { from { opacity: 0; } }
 
 .a2-modal-dialog {
   position: relative;
-  background: var(--bg);
+  background: var(--surface-container-high);
   border: 1px solid var(--border);
-  border-radius: 16px;
-  box-shadow: var(--shadow);
-  padding: 22px;
+  border-radius: 28px;
+  box-shadow: var(--elev-3);
+  padding: var(--sp-6);
   max-width: 480px; width: calc(100% - 60px);
-  max-height: 80vh; overflow-y: auto;
+  max-height: min(80vh, 720px); overflow-y: auto;
+  animation: a2-dialog-in 0.3s var(--ease-standard);
+}
+
+@keyframes a2-dialog-in {
+  from { opacity: 0; transform: translateY(16px) scale(0.94); }
 }
 
 .a2-modal-close {
-  position: absolute; top: 10px; right: 10px;
-  background: none; border: none; color: var(--muted); cursor: pointer;
-  padding: 4px; border-radius: 6px;
+  position: absolute; top: var(--sp-3); right: var(--sp-3);
+  width: 32px; height: 32px;
+  display: grid; place-items: center;
+  background: none; border: none; border-radius: 50%;
+  color: var(--muted); cursor: pointer;
+  transition: color 0.15s ease, background 0.15s ease;
 }
 
 .a2-modal-close:hover { color: var(--fg); background: color-mix(in srgb, var(--fg) 8%, transparent); }
+
+.a2-modal-close:focus-visible {
+  outline: none;
+  box-shadow: 0 0 0 3px color-mix(in srgb, var(--accent, var(--accent-a)) 30%, transparent);
+}
 
 .a2-error-chip {
   font-size: 11px; color: var(--error);
@@ -1216,7 +1615,11 @@ button { font-family: inherit; }
 
 /* Density: compact */
 body.density-compact .surface-body { padding: 12px; }
-body.density-compact .a2-column, body.density-compact .a2-row { gap: 8px; }
+body.density-compact .a2-column, body.density-compact .a2-row, body.density-compact .a2-list { gap: var(--sp-2); }
+body.density-compact .a2-button { min-height: 30px; padding: 5px 14px; }
+body.density-compact .a2-modal-dialog { padding: var(--sp-4); border-radius: var(--sp-5); }
+body.density-compact .a2-audio { padding: var(--sp-2); }
+body.density-compact .a2-tab { padding: 6px 11px; }
 body.density-compact .dash { padding: 14px 18px 24px; gap: 11px; }
 body.density-compact .dash-hero { padding: 18px 22px; }
 body.density-compact .dash-card { padding: 12px 14px; }
@@ -1226,6 +1629,10 @@ body.density-compact .set-section { padding: 13px 15px; }
 body.density-compact .set-row { padding: 9px 0; }
 body.density-compact .chat-pane { padding: 8px; gap: 7px; }
 body.density-compact .canvas { padding: 12px 14px 20px; }
+body.density-compact .a2-input { min-height: 38px; padding: 9px 12px; }
+body.density-compact .a2-outline-notch .a2-field-label { transform: translateY(12px); }
+body.density-compact .a2-chip { padding: 4.5px 12px; }
+body.density-compact .a2-segmented .a2-chip { padding: 5.5px 14px; }
 
 /* Reduced motion */
 body.no-motion *, body.no-motion *::before, body.no-motion *::after {
@@ -1426,20 +1833,23 @@ body.no-motion *, body.no-motion *::before, body.no-motion *::after {
    Custom-catalog components, library, data editing, surface actions
    -------------------------------------------------------------------------- */
 .a2-custom {
-  border: 1.5px dashed color-mix(in srgb, var(--accent-b) 45%, var(--border));
-  border-radius: 10px;
-  padding: 10px 12px;
-  display: flex; flex-direction: column; gap: 8px;
-  background: color-mix(in srgb, var(--accent-b) 4%, transparent);
+  border: 1.5px dashed color-mix(in srgb, var(--accent-b) 45%, var(--outline-soft));
+  border-radius: var(--radius);
+  padding: var(--sp-3) var(--sp-4);
+  display: flex; flex-direction: column; gap: var(--sp-2);
+  background: color-mix(in srgb, var(--accent-b) 5%, var(--surface-container-low));
 }
 
-.a2-custom-head { display: flex; align-items: center; gap: 7px; font-size: 12px; font-weight: 700; }
+.a2-custom-head { display: flex; align-items: center; gap: var(--sp-2); font-size: var(--type-title-sm-size); font-weight: var(--type-title-wt); letter-spacing: var(--type-title-ls); }
 .a2-custom-head svg { width: 13px; height: 13px; color: var(--accent-b); }
-.a2-custom-head em { font-style: normal; font-size: 9.5px; font-weight: 650; text-transform: uppercase; letter-spacing: 0.4px; color: var(--accent-b); }
+.a2-custom-head em { font-style: normal; font-size: 9.5px; font-weight: var(--type-label-wt); text-transform: uppercase; letter-spacing: var(--type-label-ls); color: var(--accent-b); }
 
 .a2-custom-props {
-  display: grid; grid-template-columns: auto 1fr; gap: 3px 12px;
+  display: grid; grid-template-columns: auto 1fr; gap: var(--sp-1) var(--sp-3);
   font-family: var(--mono); font-size: 10px;
+  padding: var(--sp-2) var(--sp-3);
+  border-radius: var(--radius-sm);
+  background: color-mix(in srgb, var(--fg) 4%, transparent);
 }
 
 .a2-custom-key { color: var(--accent-a); }
@@ -1475,27 +1885,39 @@ body.no-motion *, body.no-motion *::before, body.no-motion *::after {
 
 /* Media fallback card (blocked/unplayable video or audio) */
 .a2-media-fallback {
-  display: flex; align-items: center; gap: 14px;
-  border: 1.5px dashed color-mix(in srgb, var(--accent-a) 40%, var(--border));
+  display: flex; align-items: center; gap: var(--sp-4);
+  border: 1px solid var(--outline-soft);
   border-radius: var(--radius);
-  padding: 16px;
-  background: color-mix(in srgb, var(--accent-a) 5%, transparent);
+  padding: var(--sp-4);
+  background: var(--surface-container);
+  box-shadow: var(--elev-1);
+  animation: comp-in var(--dur-medium) var(--ease-decelerate);
 }
 
 .a2-media-fallback > svg {
-  width: 26px; height: 26px; flex: none;
-  color: var(--accent-a);
+  width: 20px; height: 20px; flex: none; box-sizing: content-box;
+  padding: var(--sp-2);
+  border-radius: var(--radius-full);
+  color: var(--accent, var(--accent-a));
+  background: color-mix(in srgb, var(--accent, var(--accent-a)) var(--state-press), transparent);
 }
 
-.a2-media-fallback-text { flex: 1; display: flex; flex-direction: column; gap: 3px; min-width: 0; }
-.a2-media-fallback-text strong { font-size: 12.5px; }
-.a2-media-fallback-text span { font-size: 11px; color: var(--muted); line-height: 1.5; }
+.a2-media-fallback-text { flex: 1; display: flex; flex-direction: column; gap: var(--sp-1); min-width: 0; }
+.a2-media-fallback-text strong { font-size: var(--type-title-sm-size); font-weight: var(--type-title-wt); }
+.a2-media-fallback-text span { font-size: var(--type-caption-size); color: var(--muted); line-height: 1.5; }
 .a2-media-fallback .a2-button { flex: none; }
 
 .a2-video { min-height: 120px; background: #000; }
 
 /* Video wrapper + silent-file badge */
-.a2-video-wrap { position: relative; min-width: 0; }
+.a2-video-wrap {
+  position: relative; min-width: 0;
+  border-radius: var(--radius);
+  overflow: hidden;
+  background: var(--surface-container-low);
+  outline: 1px solid color-mix(in srgb, var(--fg) 10%, transparent);
+  outline-offset: -1px;
+}
 
 .a2-silent-badge {
   position: absolute; top: 8px; right: 8px;

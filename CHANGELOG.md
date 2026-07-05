@@ -1,5 +1,17 @@
 # Changelog
 
+## 0.3.0 — 2026-07-05
+
+### Changed
+- **Material 3 / Fluent redesign of the surface renderer** — a full design-system pass over every rendered A2UI component:
+  tonal surface + 3-level elevation tokens, MD3 type scale, state layers (hover/press/focus-visible) throughout;
+  buttons with pointer ripple and filled/tonal/text variants; notched-outline text fields with floating labels and
+  animated error text; MD3 checkbox with check-draw animation and state-layer halo; segmented-button ChoicePicker
+  (single-select) and filter chips with leading check (multi-select); slider with hover halo and drag value bubble;
+  tabs with sliding indicator; modal with scrim fade and 28px-radius entrance motion; elevated cards, refined lists
+  (snap scrolling), tonal audio player and media fallbacks. Fully theme-aware in light and dark, respects
+  density-compact and reduced-motion, and preserves all behavior contracts (bindings, inspector, focus/playback restore).
+
 ## 0.2.0 — 2026-07-05
 
 ### Added

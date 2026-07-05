@@ -442,8 +442,29 @@
       e.stopPropagation();
       vscode.postMessage({ type: 'openExternal', url });
     });
+    attachRipple(btn);
     node.appendChild(btn);
     return node;
+  }
+
+  /**
+   * MD3 pointer ripple. Skipped entirely under body.no-motion; the ripple
+   * span is pointer-events:none so the inspector never sees it as a target,
+   * and it removes itself on animationend.
+   */
+  function attachRipple(node) {
+    node.classList.add('a2-ripple-host');
+    node.addEventListener('pointerdown', (e) => {
+      if (document.body.classList.contains('no-motion') || node.disabled) return;
+      const rect = node.getBoundingClientRect();
+      const size = Math.max(rect.width, rect.height) * 2.1;
+      const ripple = el('span', 'a2-ripple');
+      ripple.style.width = ripple.style.height = size + 'px';
+      ripple.style.left = (e.clientX - rect.left - size / 2) + 'px';
+      ripple.style.top = (e.clientY - rect.top - size / 2) + 'px';
+      ripple.addEventListener('animationend', () => ripple.remove());
+      node.appendChild(ripple);
+    });
   }
 
   function fkey(s, compId, scope) {
@@ -452,6 +473,23 @@
 
   function markTouched(s, key) {
     s.ui.touched[key] = true;
+  }
+
+  /** MD3 outlined field: input + 3-segment notched outline hosting the floating label. */
+  function outlinedField(wrap, input, labelText) {
+    const box = el('div', 'a2-field-box');
+    box.appendChild(input);
+    const outline = el('div', 'a2-field-outline');
+    outline.appendChild(el('span', 'a2-outline-lead'));
+    const notch = el('span', 'a2-outline-notch');
+    const label = el('span', 'a2-field-label');
+    label.textContent = labelText || '';
+    if (!labelText) notch.classList.add('empty');
+    notch.appendChild(label);
+    outline.appendChild(notch);
+    outline.appendChild(el('span', 'a2-outline-trail'));
+    box.appendChild(outline);
+    wrap.appendChild(box);
   }
 
   function renderComponent(id, s, scope, seen) {
@@ -608,15 +646,41 @@
       case 'Tabs': {
         const node = el('div', 'a2-tabs');
         const bar = el('div', 'a2-tabbar');
-        const active = s.ui.tabs[fkey(s, comp.id, scope)] || 0;
+        const key = fkey(s, comp.id, scope);
+        const active = s.ui.tabs[key] || 0;
         (comp.tabs || []).forEach((tab, idx) => {
           const btn = el('button', 'a2-tab' + (idx === active ? ' active' : ''));
           btn.textContent = DS(tab.title);
           btn.addEventListener('click', () => {
-            s.ui.tabs[fkey(s, comp.id, scope)] = idx;
+            s.ui.tabs[key] = idx;
             scheduleRender();
           });
+          attachRipple(btn);
           bar.appendChild(btn);
+        });
+        // Sliding MD3 indicator. The tree is rebuilt every render, so the
+        // last metrics are memoized in s.ui and re-applied as the start
+        // position; the rAF measures the new active tab and the CSS
+        // transition slides the indicator across.
+        const indicator = el('span', 'a2-tab-indicator');
+        bar.appendChild(indicator);
+        const memo = (s.ui.tabInd = s.ui.tabInd || {});
+        const prev = memo[key];
+        if (prev) {
+          indicator.style.transform = `translateX(${prev.x}px)`;
+          indicator.style.width = prev.w + 'px';
+        } else {
+          indicator.style.opacity = '0';
+        }
+        requestAnimationFrame(() => {
+          if (!bar.isConnected) return;
+          const btnEl = bar.querySelectorAll('.a2-tab')[active];
+          if (!btnEl) return;
+          const m = { x: btnEl.offsetLeft + 10, w: Math.max(btnEl.offsetWidth - 20, 16) };
+          memo[key] = m;
+          indicator.style.opacity = '1';
+          indicator.style.transform = `translateX(${m.x}px)`;
+          indicator.style.width = m.w + 'px';
         });
         node.appendChild(bar);
         const panel = el('div', 'a2-tabpanel');
@@ -645,6 +709,7 @@
             s.ui.modals[key] = false;
             scheduleRender();
           });
+          attachRipple(closeBtn);
           dialog.appendChild(closeBtn);
           if (comp.content) dialog.appendChild(renderComponent(comp.content, s, scope, seen));
           overlay.appendChild(dialog);
@@ -668,15 +733,13 @@
           node.title = failures.join('\n');
         }
         node.addEventListener('click', () => handleAction(comp, s, scope));
+        attachRipple(node);
         return node;
       }
       case 'TextField': {
         const key = fkey(s, comp.id, scope);
-        const wrap = el('label', 'a2-field');
-        const label = el('span', 'a2-field-label');
-        label.textContent = DS(comp.label);
-        wrap.appendChild(label);
         const variant = comp.variant || 'shortText';
+        const wrap = el('label', 'a2-field a2-field-outlined' + (variant === 'longText' ? ' a2-field-area' : ''));
         const bindPath = comp.value && comp.value.path ? absPath(comp.value.path, scope) : null;
         const current = comp.value !== undefined ? DS(comp.value) : '';
         let input;
@@ -690,8 +753,9 @@
           input.value = current;
         }
         input.dataset.fkey = key;
-        input.placeholder = DS(comp.label);
+        if (input.value !== '') wrap.classList.add('has-value');
         input.addEventListener('input', () => {
+          wrap.classList.toggle('has-value', input.value !== '');
           markTouched(s, key);
           if (bindPath) {
             const val = variant === 'number' ? (input.value === '' ? '' : Number(input.value)) : input.value;
@@ -700,13 +764,14 @@
             renderDataTab();
           }
         });
-        wrap.appendChild(input);
+        outlinedField(wrap, input, DS(comp.label));
         const failures = evaluateChecks(comp, s, scope);
         if (failures.length > 0 && s.ui.touched[key]) {
           const err = el('span', 'a2-field-error');
           err.textContent = failures[0];
           wrap.appendChild(err);
           input.classList.add('invalid');
+          wrap.classList.add('has-error');
         }
         return wrap;
       }
@@ -746,13 +811,13 @@
           label.textContent = labelText;
           wrap.appendChild(label);
         }
-        const group = el('div', 'a2-chips');
+        const group = el('div', multi ? 'a2-chips' : 'a2-chips a2-segmented');
         let current = bindPath ? getPath(s.dataModel, bindPath) : D(comp.value);
         const selected = Array.isArray(current) ? current.slice() : current !== undefined && current !== null && current !== '' ? [current] : [];
         for (const opt of comp.options || []) {
           const optValue = resolveDynamic(opt.value, s, scope);
           const chip = el('button', 'a2-chip' + (selected.includes(optValue) ? ' selected' : ''));
-          chip.textContent = toDisplayString(resolveDynamic(opt.label, s, scope));
+          chip.innerHTML = `${iconSvg('check', 'a2-chip-check')}<span>${escapeHtml(toDisplayString(resolveDynamic(opt.label, s, scope)))}</span>`;
           chip.addEventListener('click', () => {
             markTouched(s, key);
             let next;
@@ -788,15 +853,22 @@
         header.appendChild(label);
         header.appendChild(valueBadge);
         wrap.appendChild(header);
+        const track = el('div', 'a2-slider-wrap');
         const input = el('input', 'a2-slider');
         input.type = 'range';
         input.min = String(min);
         input.max = String(max);
         input.value = String(current);
         input.dataset.fkey = key;
+        const bubble = el('span', 'a2-slider-bubble');
+        bubble.textContent = String(current);
         const pct = max > min ? ((current - min) / (max - min)) * 100 : 0;
-        input.style.setProperty('--pct', pct + '%');
+        track.style.setProperty('--pct', pct + '%');
         input.addEventListener('input', () => {
+          const p = max > min ? ((Number(input.value) - min) / (max - min)) * 100 : 0;
+          track.style.setProperty('--pct', p + '%');
+          bubble.textContent = input.value;
+          valueBadge.textContent = input.value;
           markTouched(s, key);
           if (bindPath) {
             setPath(s.dataModel, bindPath, Number(input.value));
@@ -804,16 +876,15 @@
             renderDataTab();
           }
         });
-        wrap.appendChild(input);
+        track.appendChild(input);
+        track.appendChild(bubble);
+        wrap.appendChild(track);
         return wrap;
       }
       case 'DateTimeInput': {
         const key = fkey(s, comp.id, scope);
         const bindPath = comp.value && comp.value.path ? absPath(comp.value.path, scope) : null;
-        const wrap = el('label', 'a2-field');
-        const label = el('span', 'a2-field-label');
-        label.textContent = comp.enableTime && !comp.enableDate ? 'Time' : comp.enableTime ? 'Date & time' : 'Date';
-        wrap.appendChild(label);
+        const wrap = el('label', 'a2-field a2-field-outlined has-value');
         const input = el('input', 'a2-input');
         input.type = comp.enableDate && comp.enableTime ? 'datetime-local' : comp.enableTime ? 'time' : 'date';
         input.dataset.fkey = key;
@@ -827,7 +898,7 @@
             renderDataTab();
           }
         });
-        wrap.appendChild(input);
+        outlinedField(wrap, input, comp.enableTime && !comp.enableDate ? 'Time' : comp.enableTime ? 'Date & time' : 'Date');
         return wrap;
       }
       default: {
