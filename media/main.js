@@ -492,6 +492,76 @@
     wrap.appendChild(box);
   }
 
+  /**
+   * Pages/Stepper active index. The bound path is the source of truth (agents
+   * navigate via updateDataModel); s.ui keeps state when unbound. Accepts a
+   * number, a numeric string, or a page/step title (case-insensitive).
+   */
+  function navIndex(comp, s, scope, ui, key, titles) {
+    const bindPath = comp.value && comp.value.path ? absPath(comp.value.path, scope) : null;
+    const raw = bindPath ? getPath(s.dataModel, bindPath) : ui[key] !== undefined ? ui[key] : resolveDynamic(comp.value, s, scope);
+    let idx = typeof raw === 'number' && Number.isFinite(raw) ? Math.round(raw) : /^\d+$/.test(String(raw)) ? Number(raw) : -1;
+    if (idx < 0 && typeof raw === 'string') idx = titles.findIndex((t) => String(t).toLowerCase() === raw.toLowerCase());
+    return Math.max(0, Math.min(titles.length - 1, idx < 0 ? 0 : idx));
+  }
+
+  /** Pages/Stepper navigation write: bound path (two-way) or s.ui fallback. */
+  function navGo(comp, s, scope, ui, key, idx) {
+    markTouched(s, key);
+    const bindPath = comp.value && comp.value.path ? absPath(comp.value.path, scope) : null;
+    if (bindPath) {
+      setPath(s.dataModel, bindPath, idx);
+      scheduleRender();
+      renderDataTab();
+    } else {
+      ui[key] = idx;
+      scheduleRender();
+    }
+  }
+
+  /** Chart data normalization: numbers or {label,value}-ish objects → [{label,value}]. */
+  function chartData(raw) {
+    if (!Array.isArray(raw)) return [];
+    return raw.map((item, i) => {
+      if (item && typeof item === 'object') {
+        const v = Number(item.value ?? item.y ?? item.count ?? item.amount);
+        return { label: toDisplayString(item.label ?? item.name ?? item.x ?? i + 1), value: Number.isFinite(v) ? v : 0 };
+      }
+      const n = Number(item);
+      return { label: String(i + 1), value: Number.isFinite(n) ? n : 0 };
+    });
+  }
+
+  const CHART_COLORS = [
+    'var(--accent, var(--accent-a))',
+    'var(--accent-b)',
+    'var(--accent-c)',
+    'var(--accent-d)',
+    'color-mix(in srgb, var(--accent, var(--accent-a)) 45%, var(--fg))'
+  ];
+
+  /** Smooth SVG path through [x,y] points (quadratic midpoint interpolation). */
+  function smoothPath(pts) {
+    const r = (n) => Math.round(n * 10) / 10;
+    if (pts.length === 0) return '';
+    let d = `M${r(pts[0][0])},${r(pts[0][1])}`;
+    for (let i = 1; i < pts.length - 1; i++) {
+      const mx = (pts[i][0] + pts[i + 1][0]) / 2;
+      const my = (pts[i][1] + pts[i + 1][1]) / 2;
+      d += ` Q${r(pts[i][0])},${r(pts[i][1])} ${r(mx)},${r(my)}`;
+    }
+    if (pts.length > 1) {
+      const last = pts[pts.length - 1];
+      d += ` L${r(last[0])},${r(last[1])}`;
+    }
+    return d;
+  }
+
+  /** Initials for Avatar fallback: first letters of the first two words. */
+  function initialsOf(name) {
+    return (String(name).trim().split(/\s+/).map((w) => w[0]).slice(0, 2).join('') || '?').toUpperCase();
+  }
+
   function renderComponent(id, s, scope, seen) {
     seen = seen || new Set();
     const comp = s.components.get(id);
@@ -900,6 +970,379 @@
         });
         outlinedField(wrap, input, comp.enableTime && !comp.enableDate ? 'Time' : comp.enableTime ? 'Date & time' : 'Date');
         return wrap;
+      }
+      case 'Pages': {
+        const pages = comp.pages || [];
+        const key = fkey(s, comp.id, scope);
+        const ui = (s.ui.pages = s.ui.pages || {});
+        const titles = pages.map((p) => DS(p.title));
+        const active = navIndex(comp, s, scope, ui, key, titles);
+        const node = el('div', 'a2-pages');
+        const nav = el('nav', 'a2-pages-nav');
+        pages.forEach((p, idx) => {
+          const btn = el('button', 'a2-pages-item' + (idx === active ? ' active' : ''));
+          btn.dataset.fkey = `${key}#${idx}`;
+          btn.innerHTML = `${iconSvg(DS(p.icon) || 'folder', 'a2-pages-icon')}<span>${escapeHtml(titles[idx])}</span>`;
+          btn.addEventListener('click', () => navGo(comp, s, scope, ui, key, idx));
+          attachRipple(btn);
+          nav.appendChild(btn);
+        });
+        node.appendChild(nav);
+        const body = el('div', 'a2-pages-body');
+        const page = pages[active];
+        if (page && page.child) body.appendChild(renderComponent(page.child, s, scope, seen));
+        node.appendChild(body);
+        return node;
+      }
+      case 'Stepper': {
+        const steps = comp.steps || [];
+        const key = fkey(s, comp.id, scope);
+        const ui = (s.ui.steps = s.ui.steps || {});
+        const titles = steps.map((st) => DS(st.title));
+        const active = navIndex(comp, s, scope, ui, key, titles);
+        const node = el('div', 'a2-stepper');
+        const head = el('div', 'a2-stepper-head');
+        steps.forEach((st, idx) => {
+          if (idx > 0) head.appendChild(el('span', 'a2-step-line' + (idx <= active ? ' done' : '')));
+          const btn = el('button', 'a2-step' + (idx === active ? ' active' : idx < active ? ' done' : ''));
+          btn.dataset.fkey = `${key}#${idx}`;
+          btn.innerHTML = `<span class="a2-step-dot">${idx < active ? iconSvg('check') : `<em>${idx + 1}</em>`}</span><span class="a2-step-title">${escapeHtml(titles[idx])}</span>`;
+          btn.addEventListener('click', () => navGo(comp, s, scope, ui, key, idx));
+          attachRipple(btn);
+          head.appendChild(btn);
+        });
+        node.appendChild(head);
+        const body = el('div', 'a2-stepper-body');
+        const step = steps[active];
+        if (step && step.child) body.appendChild(renderComponent(step.child, s, scope, seen));
+        node.appendChild(body);
+        const foot = el('div', 'a2-stepper-foot');
+        const back = el('button', 'a2-button a2-button-default');
+        back.textContent = 'Back';
+        back.disabled = active === 0;
+        back.addEventListener('click', () => navGo(comp, s, scope, ui, key, Math.max(0, active - 1)));
+        attachRipple(back);
+        const next = el('button', 'a2-button a2-button-primary');
+        next.textContent = 'Next';
+        next.disabled = active >= steps.length - 1;
+        next.addEventListener('click', () => navGo(comp, s, scope, ui, key, Math.min(steps.length - 1, active + 1)));
+        attachRipple(next);
+        foot.appendChild(back);
+        foot.appendChild(next);
+        node.appendChild(foot);
+        return node;
+      }
+      case 'Hero': {
+        const node = el('div', 'a2-hero' + (comp.align === 'center' ? ' a2-hero-center' : ''));
+        const img = normalizeMediaUrl(DS(comp.image));
+        if (img) {
+          node.classList.add('has-image');
+          node.style.backgroundImage = `linear-gradient(180deg, rgba(8,10,18,0.35), rgba(8,10,18,0.72)), url("${img.replace(/"/g, '%22')}")`;
+        }
+        const title = el('div', 'a2-hero-title');
+        title.textContent = DS(comp.title);
+        node.appendChild(title);
+        const sub = DS(comp.subtitle);
+        if (sub) {
+          const subEl = el('div', 'a2-hero-sub');
+          subEl.textContent = sub;
+          node.appendChild(subEl);
+        }
+        return node;
+      }
+      case 'StatCard': {
+        const node = el('div', 'a2-stat');
+        const icon = DS(comp.icon);
+        if (icon) {
+          const tile = el('span', 'a2-stat-tile');
+          tile.innerHTML = iconSvg(icon);
+          node.appendChild(tile);
+        }
+        const body = el('div', 'a2-stat-body');
+        const value = el('div', 'a2-stat-value');
+        value.textContent = DS(comp.value);
+        body.appendChild(value);
+        const meta = el('div', 'a2-stat-meta');
+        const label = el('span', 'a2-stat-label');
+        label.textContent = DS(comp.label);
+        meta.appendChild(label);
+        const delta = DS(comp.delta);
+        if (delta) {
+          const dir = delta.startsWith('-') ? 'down' : delta.startsWith('+') ? 'up' : 'flat';
+          const chip = el('span', `a2-stat-delta ${dir}`);
+          chip.innerHTML = (dir === 'flat' ? '' : iconSvg('arrowForward', 'a2-delta-icon')) + `<span>${escapeHtml(delta)}</span>`;
+          meta.appendChild(chip);
+        }
+        body.appendChild(meta);
+        node.appendChild(body);
+        return node;
+      }
+      case 'Chart': {
+        const variant = comp.variant === 'line' || comp.variant === 'donut' ? comp.variant : 'bar';
+        const data = chartData(Array.isArray(comp.data) ? comp.data : D(comp.data));
+        const node = el('div', `a2-chart a2-chart-${variant}`);
+        const labelText = DS(comp.label);
+        if (labelText) {
+          const cap = el('div', 'a2-chart-label');
+          cap.textContent = labelText;
+          node.appendChild(cap);
+        }
+        if (data.length === 0) {
+          const empty = el('div', 'a2-chart-empty');
+          empty.innerHTML = `${iconSvg('photo')}<span>No data yet</span>`;
+          node.appendChild(empty);
+          return node;
+        }
+        const r = (n) => Math.round(n * 10) / 10;
+        const tip = (d) => `<title>${escapeHtml(d.label)}: ${escapeHtml(toDisplayString(d.value))}</title>`;
+        const body = el('div', 'a2-chart-body');
+        if (variant === 'donut') {
+          const total = data.reduce((a, d) => a + Math.max(d.value, 0), 0) || 1;
+          const C = 2 * Math.PI * 48;
+          const gap = data.length > 1 ? 2 : 0;
+          let offset = 0;
+          const segs = data
+            .map((d, i) => {
+              const len = Math.max((Math.max(d.value, 0) / total) * C - gap, 0);
+              const seg = `<circle cx="70" cy="70" r="48" fill="none" stroke="${CHART_COLORS[i % CHART_COLORS.length]}" stroke-width="16" stroke-linecap="butt" stroke-dasharray="${r(len)} ${r(C - len)}" stroke-dashoffset="${r(-offset)}" transform="rotate(-90 70 70)">${tip(d)}</circle>`;
+              offset += (Math.max(d.value, 0) / total) * C;
+              return seg;
+            })
+            .join('');
+          const sum = data.reduce((a, d) => a + Math.max(d.value, 0), 0);
+          body.innerHTML =
+            `<svg class="a2-chart-svg" viewBox="0 0 140 140" role="img">${segs}` +
+            `<text x="70" y="68" text-anchor="middle" class="a2-donut-total">${escapeHtml(sum.toLocaleString())}</text>` +
+            `<text x="70" y="84" text-anchor="middle" class="a2-donut-caption">total</text></svg>`;
+          node.appendChild(body);
+          const legend = el('div', 'a2-chart-legend');
+          legend.innerHTML = data
+            .map((d, i) => `<span class="a2-legend-item"><i style="background:${CHART_COLORS[i % CHART_COLORS.length]}"></i>${escapeHtml(d.label)} <b>${escapeHtml(toDisplayString(d.value))}</b></span>`)
+            .join('');
+          node.appendChild(legend);
+          return node;
+        }
+        const W = 320, H = 150, padT = 8, padB = 20, padX = 10;
+        const plotH = H - padT - padB;
+        const values = data.map((d) => d.value);
+        let svg = '';
+        if (variant === 'bar') {
+          const max = Math.max(1, ...values.map((v) => Math.max(v, 0)));
+          const n = data.length;
+          const gap = n > 24 ? 1 : 6;
+          const bw = Math.max(1, Math.min(42, (W - 2 * padX - gap * (n - 1)) / n));
+          const x0 = (W - (n * bw + (n - 1) * gap)) / 2;
+          svg = data
+            .map((d, i) => {
+              const h = Math.max((Math.max(d.value, 0) / max) * plotH, 1.5);
+              const x = x0 + i * (bw + gap);
+              const lbl = n <= 10 ? `<text x="${r(x + bw / 2)}" y="${H - 6}" text-anchor="middle" class="a2-chart-tick">${escapeHtml(d.label.slice(0, 6))}</text>` : '';
+              return `<rect class="a2-bar" x="${r(x)}" y="${r(padT + plotH - h)}" width="${r(bw)}" height="${r(h)}" rx="${r(Math.min(4, bw / 2))}" fill="var(--accent, var(--accent-a))">${tip(d)}</rect>${lbl}`;
+            })
+            .join('');
+        } else {
+          const max = Math.max(...values);
+          const min = Math.min(...values);
+          const span = max - min || 1;
+          const stepX = data.length > 1 ? (W - 2 * padX) / (data.length - 1) : 0;
+          const pts = data.map((d, i) => [padX + (data.length > 1 ? i * stepX : (W - 2 * padX) / 2), padT + ((max - d.value) / span) * plotH]);
+          const line = smoothPath(pts);
+          const area = `${line} L${r(pts[pts.length - 1][0])},${H - padB} L${r(pts[0][0])},${H - padB} Z`;
+          const dots = data
+            .map((d, i) => {
+              const lbl = data.length <= 10 ? `<text x="${r(pts[i][0])}" y="${H - 6}" text-anchor="middle" class="a2-chart-tick">${escapeHtml(d.label.slice(0, 6))}</text>` : '';
+              return `<circle class="a2-chart-dot" cx="${r(pts[i][0])}" cy="${r(pts[i][1])}" r="3" fill="var(--accent, var(--accent-a))">${tip(d)}</circle>${lbl}`;
+            })
+            .join('');
+          svg = `<path d="${area}" fill="var(--accent, var(--accent-a))" fill-opacity="0.12" stroke="none"/>` +
+            `<path d="${line}" fill="none" stroke="var(--accent, var(--accent-a))" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"/>` + dots;
+        }
+        body.innerHTML = `<svg class="a2-chart-svg" viewBox="0 0 ${W} ${H}" preserveAspectRatio="none" role="img">${svg}</svg>`;
+        node.appendChild(body);
+        return node;
+      }
+      case 'Table': {
+        const rowsRaw = Array.isArray(comp.rows) ? comp.rows : D(comp.rows);
+        const rows = Array.isArray(rowsRaw) ? rowsRaw : [];
+        const cols = comp.columns || [];
+        const wrap = el('div', 'a2-table-wrap');
+        const table = el('table', 'a2-table');
+        const thead = el('thead');
+        const hr = el('tr');
+        for (const col of cols) {
+          const th = el('th');
+          th.textContent = DS(col.header);
+          hr.appendChild(th);
+        }
+        thead.appendChild(hr);
+        table.appendChild(thead);
+        const tbody = el('tbody');
+        for (const row of rows) {
+          const tr = el('tr');
+          for (const col of cols) {
+            const td = el('td');
+            const p = typeof col.path === 'string' ? col.path : '';
+            const v = p.startsWith('/') ? getPath(s.dataModel, p) : getPath(row, '/' + p);
+            if (typeof v === 'number') td.classList.add('a2-cell-num');
+            td.textContent = toDisplayString(v);
+            tr.appendChild(td);
+          }
+          tbody.appendChild(tr);
+        }
+        if (rows.length === 0) {
+          const tr = el('tr');
+          const td = el('td', 'a2-table-empty');
+          td.colSpan = Math.max(cols.length, 1);
+          td.textContent = 'No rows yet';
+          tr.appendChild(td);
+          tbody.appendChild(tr);
+        }
+        table.appendChild(tbody);
+        wrap.appendChild(table);
+        return wrap;
+      }
+      case 'Timeline': {
+        const raw = Array.isArray(comp.items) ? comp.items : D(comp.items);
+        const items = Array.isArray(raw) ? raw : [];
+        const node = el('div', 'a2-timeline');
+        for (const item of items) {
+          const it = item && typeof item === 'object' ? item : { title: item };
+          const row = el('div', 'a2-tl-item');
+          row.appendChild(el('span', 'a2-tl-dot'));
+          const body = el('div', 'a2-tl-body');
+          const head = el('div', 'a2-tl-head');
+          const title = el('span', 'a2-tl-title');
+          title.textContent = toDisplayString(it.title);
+          head.appendChild(title);
+          if (it.time !== undefined) {
+            const time = el('span', 'a2-tl-time');
+            time.textContent = toDisplayString(it.time);
+            head.appendChild(time);
+          }
+          body.appendChild(head);
+          if (it.description !== undefined) {
+            const desc = el('div', 'a2-tl-desc');
+            desc.textContent = toDisplayString(it.description);
+            body.appendChild(desc);
+          }
+          row.appendChild(body);
+          node.appendChild(row);
+        }
+        if (items.length === 0) node.appendChild(placeholder(comp.id + ' items'));
+        return node;
+      }
+      case 'Accordion': {
+        const key = fkey(s, comp.id, scope);
+        const acc = (s.ui.acc = s.ui.acc || {});
+        const open = acc[key] !== undefined ? acc[key] : 0;
+        const node = el('div', 'a2-accordion');
+        (comp.items || []).forEach((item, idx) => {
+          const isOpen = idx === open;
+          const sec = el('div', 'a2-acc-item' + (isOpen ? ' open' : ''));
+          const head = el('button', 'a2-acc-head');
+          head.dataset.fkey = `${key}#${idx}`;
+          head.setAttribute('aria-expanded', String(isOpen));
+          head.innerHTML = `<span class="a2-acc-title">${escapeHtml(DS(item.title))}</span>${iconSvg('arrowForward', 'a2-acc-chevron')}`;
+          head.addEventListener('click', () => {
+            acc[key] = isOpen ? -1 : idx;
+            scheduleRender();
+          });
+          attachRipple(head);
+          sec.appendChild(head);
+          if (isOpen && item.child) {
+            const body = el('div', 'a2-acc-body');
+            body.appendChild(renderComponent(item.child, s, scope, seen));
+            sec.appendChild(body);
+          }
+          node.appendChild(sec);
+        });
+        return node;
+      }
+      case 'Rating': {
+        const key = fkey(s, comp.id, scope);
+        const bindPath = comp.value && comp.value.path ? absPath(comp.value.path, scope) : null;
+        const max = Math.max(1, Math.min(10, Math.round(Number(comp.max) || 5)));
+        const current = Math.round(Number(D(comp.value)) || 0);
+        const node = el('div', 'a2-rating');
+        node.setAttribute('role', 'radiogroup');
+        node.setAttribute('aria-label', 'Rating');
+        for (let i = 1; i <= max; i++) {
+          const star = el('button', 'a2-rating-star' + (i <= current ? ' filled' : ''));
+          star.dataset.fkey = `${key}#${i}`;
+          star.innerHTML = iconSvg('star');
+          star.setAttribute('aria-label', `${i} of ${max}`);
+          const previewOn = () => {
+            node.querySelectorAll('.a2-rating-star').forEach((b, j) => b.classList.toggle('preview', j < i));
+          };
+          const previewOff = () => {
+            node.querySelectorAll('.a2-rating-star').forEach((b) => b.classList.remove('preview'));
+          };
+          star.addEventListener('mouseenter', previewOn);
+          star.addEventListener('mouseleave', previewOff);
+          star.addEventListener('focus', previewOn);
+          star.addEventListener('blur', previewOff);
+          star.addEventListener('click', () => {
+            markTouched(s, key);
+            if (bindPath) {
+              setPath(s.dataModel, bindPath, i);
+              scheduleRender();
+              renderDataTab();
+            }
+          });
+          node.appendChild(star);
+        }
+        return node;
+      }
+      case 'ProgressBar': {
+        const max = Number(comp.max) || 100;
+        const v = Number(D(comp.value)) || 0;
+        const pct = Math.max(0, Math.min(100, (v / max) * 100));
+        const node = el('div', 'a2-progress');
+        const head = el('div', 'a2-progress-head');
+        const label = el('span', 'a2-progress-label');
+        label.textContent = DS(comp.label);
+        const pctEl = el('span', 'a2-progress-pct');
+        pctEl.textContent = `${Math.round(pct)}%`;
+        head.appendChild(label);
+        head.appendChild(pctEl);
+        node.appendChild(head);
+        const track = el('div', 'a2-progress-track');
+        track.setAttribute('role', 'progressbar');
+        track.setAttribute('aria-valuemin', '0');
+        track.setAttribute('aria-valuemax', String(max));
+        track.setAttribute('aria-valuenow', String(Math.max(0, Math.min(max, v))));
+        const fill = el('div', 'a2-progress-fill');
+        fill.style.width = pct + '%';
+        track.appendChild(fill);
+        node.appendChild(track);
+        return node;
+      }
+      case 'Avatar': {
+        const name = DS(comp.name);
+        const url = normalizeMediaUrl(DS(comp.image));
+        const node = el('span', 'a2-avatar');
+        if (name) node.title = name;
+        if (url) {
+          const img = el('img', 'a2-avatar-img');
+          img.src = url;
+          img.alt = name || 'avatar';
+          img.addEventListener('error', () => {
+            img.remove();
+            node.textContent = initialsOf(name);
+            node.classList.add('a2-avatar-fallback');
+          });
+          node.appendChild(img);
+        } else {
+          node.textContent = initialsOf(name);
+          node.classList.add('a2-avatar-fallback');
+        }
+        return node;
+      }
+      case 'Badge': {
+        const tone = ['accent', 'success', 'warning', 'danger', 'neutral'].includes(comp.tone) ? comp.tone : 'accent';
+        const node = el('span', `a2-badge a2-badge-${tone}`);
+        node.textContent = DS(comp.text);
+        return node;
       }
       default: {
         // Custom-catalog component: render a labeled placeholder with props.

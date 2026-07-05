@@ -41,6 +41,22 @@ export const BASIC_COMPONENTS = new Set([
   'DateTimeInput'
 ]);
 
+/** Studio extended catalog (https://a2ui-studio.dev/catalogs/studio/v1). */
+export const STUDIO_COMPONENTS = new Set([
+  'Pages',
+  'Stepper',
+  'Hero',
+  'StatCard',
+  'Chart',
+  'Table',
+  'Timeline',
+  'Accordion',
+  'Rating',
+  'ProgressBar',
+  'Avatar',
+  'Badge'
+]);
+
 const ENVELOPE_KEYS = ['createSurface', 'updateComponents', 'updateDataModel', 'deleteSurface'] as const;
 
 /**
@@ -165,8 +181,12 @@ export function validateEnvelope(obj: unknown, opts: ValidateOptions = {}): Vali
         }
         if (typeof comp.component !== 'string') {
           errors.push(`Component "${comp.id}" missing component type`);
-        } else if (!BASIC_COMPONENTS.has(comp.component) && !opts.allowUnknownComponents) {
-          errors.push(`Component "${comp.id}" uses unknown type "${comp.component}" (not in the basic catalog)`);
+        } else if (
+          !BASIC_COMPONENTS.has(comp.component) &&
+          !STUDIO_COMPONENTS.has(comp.component) &&
+          !opts.allowUnknownComponents
+        ) {
+          errors.push(`Component "${comp.id}" uses unknown type "${comp.component}" (not in the basic or studio catalog)`);
         }
       }
     }

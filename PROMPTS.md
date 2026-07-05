@@ -139,6 +139,46 @@ impact are filled. Use a red #D64545 theme.
 
 ---
 
+## 📱 Multi-page apps (Studio catalog)
+
+These target the **Studio extended catalog** (`https://a2ui-studio.dev/catalogs/studio/v1`) — Pages, Stepper, Hero, StatCard, Chart, Table, Timeline, Accordion, Rating, ProgressBar, Avatar, Badge — on top of the basic components.
+
+**SaaS metrics dashboard** — Pages navigation, StatCards, all three Chart variants and a Table:
+
+```
+A multi-page SaaS metrics app using the studio catalog. Root is a Pages component bound to
+/nav/page with three pages: "Overview" (a Hero titled "Acme Metrics" with a one-line subtitle,
+a Row of four StatCards — active users, MRR, conversion, churn — with realistic values and
++/- deltas, then a bar Chart of signups per day and a line Chart of weekly active users),
+"Customers" (a Table over /customers with columns Customer, Plan, Seats, MRR and 5 seeded rows,
+plus a ProgressBar for the quarterly revenue goal), and "Channels" (a donut Chart of acquisition
+channels). Seed every bound path with believable data and set a blue theme primaryColor.
+```
+
+**Onboarding wizard** — Stepper with built-in Back/Next and a two-way Rating:
+
+```
+A 4-step onboarding wizard using the studio catalog Stepper bound to /wizard/step:
+step "Profile" (name and email TextFields with validation), step "Workspace" (workspace name
+field and a team-size ChoicePicker), step "Preferences" (three CheckBoxes and a theme
+ChoicePicker), and step "Finish" (a Hero saying "You're all set!", a Rating bound to
+/feedback/stars asking how easy setup was, and a primary "Launch workspace" button sending
+the whole data model). Seed /wizard/step to 0 and give every field a sensible default.
+```
+
+**Team activity hub** — Pages + Timeline + Accordion + Avatar/Badge, agent-driven navigation:
+
+```
+A team activity hub using the studio catalog. Pages root bound to /nav/page with "Feed"
+(a Row of an Avatar for the on-call engineer, their name and role, and a green "Live" Badge,
+then a Timeline over /events with 4 realistic deploy/incident entries), "Metrics" (two
+StatCards and a bar Chart of deploys per day), and "FAQ" (an Accordion with three
+questions about the on-call process). After rendering, when I click any button you add,
+navigate me to the Metrics page by writing 1 to /nav/page with updateDataModel.
+```
+
+---
+
 ## ⚔️ Arena-worthy prompts
 
 These separate strong models from weak ones — try them in the **Arena** view:

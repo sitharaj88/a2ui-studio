@@ -1,5 +1,19 @@
 # Changelog
 
+## 0.4.0 — 2026-07-06
+
+### Added
+- **Studio Extended Catalog** (`https://a2ui-studio.dev/catalogs/studio/v1`) — 12 modern components beyond the
+  basic catalog, so agents can generate real apps: **Pages** (multi-page navigation, agent can navigate you via
+  `updateDataModel`), **Stepper** wizards, **Hero** headers, **StatCard** KPI tiles with delta chips,
+  **Chart** (bar/line/donut, pure SVG), **Table** (data-model rows, sticky header), **Timeline**, **Accordion**,
+  interactive **Rating**, **ProgressBar**, **Avatar** (initials fallback), **Badge**.
+- **Design direction** in the system prompt — agents are taught to compose like designers: hero-first layouts,
+  stat rows, generous spacing, icons, realistic seeded data, always-themed surfaces.
+- **Analytics app instant demo** — a three-page product-analytics app (Hero + KPIs + charts, data tables, more)
+  rendering locally with zero AI setup.
+- PROMPTS.md: new "Multi-page apps" section with copy-paste prompts.
+
 ## 0.3.0 — 2026-07-05
 
 ### Changed

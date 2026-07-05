@@ -109,6 +109,87 @@
     }
   ];
 
+  const STUDIO_CATALOG = 'https://a2ui-studio.dev/catalogs/studio/v1';
+
+  const studioAnalyticsDemo = [
+    { version: 'v0.9.1', createSurface: { surfaceId: 'demo_studio_analytics', catalogId: STUDIO_CATALOG, sendDataModel: true, theme: { primaryColor: '#6C8EEF', agentDisplayName: 'Studio Demo Agent' } } },
+    {
+      version: 'v0.9.1',
+      updateComponents: {
+        surfaceId: 'demo_studio_analytics',
+        components: [
+          { id: 'root', component: 'Pages', value: { path: '/nav/page' }, pages: [ { title: 'Overview', icon: 'home', child: 'page_overview' }, { title: 'Data', icon: 'folder', child: 'page_data' }, { title: 'Activity', icon: 'notifications', child: 'page_activity' } ] },
+          { id: 'page_overview', component: 'Column', children: ['hero', 'kpi_row', 'chart_signups', 'chart_row'] },
+          { id: 'hero', component: 'Hero', title: 'Pulse Analytics', subtitle: 'Product usage for the week of Jun 29 – Jul 5, 2026' },
+          { id: 'kpi_row', component: 'Row', children: ['kpi_users', 'kpi_mrr', 'kpi_conv', 'kpi_churn'] },
+          { id: 'kpi_users', component: 'StatCard', label: 'Active users', value: '24,318', delta: '+6.4%', icon: 'person', weight: 1 },
+          { id: 'kpi_mrr', component: 'StatCard', label: 'MRR', value: '$86.4K', delta: '+3.1%', icon: 'payment', weight: 1 },
+          { id: 'kpi_conv', component: 'StatCard', label: 'Trial conversion', value: '4.7%', delta: '+0.4%', icon: 'thumbUp', weight: 1 },
+          { id: 'kpi_churn', component: 'StatCard', label: 'Churn', value: '2.1%', delta: '-0.3%', icon: 'warning', weight: 1 },
+          { id: 'chart_signups', component: 'Chart', variant: 'bar', data: { path: '/metrics/signups' }, label: 'Signups per day' },
+          { id: 'chart_row', component: 'Row', children: ['chart_trend', 'chart_channels'], align: 'start' },
+          { id: 'chart_trend', component: 'Chart', variant: 'line', data: { path: '/metrics/wau' }, label: 'Weekly active users (6 weeks)', weight: 3 },
+          { id: 'chart_channels', component: 'Chart', variant: 'donut', data: { path: '/metrics/channels' }, label: 'Acquisition channels', weight: 2 },
+          { id: 'page_data', component: 'Column', children: ['data_title', 'customers_table', 'goal_progress', 'divider_data', 'rating_caption', 'dash_rating'] },
+          { id: 'data_title', component: 'Text', text: 'Top customers', variant: 'h3' },
+          { id: 'customers_table', component: 'Table', rows: { path: '/customers' }, columns: [ { header: 'Customer', path: 'name' }, { header: 'Plan', path: 'plan' }, { header: 'Seats', path: 'seats' }, { header: 'MRR', path: 'mrr' }, { header: 'Health', path: 'health' } ] },
+          { id: 'goal_progress', component: 'ProgressBar', value: { path: '/goals/q3Revenue' }, max: 100, label: 'Q3 revenue goal' },
+          { id: 'divider_data', component: 'Divider', axis: 'horizontal' },
+          { id: 'rating_caption', component: 'Text', text: 'How useful is this dashboard?', variant: 'caption' },
+          { id: 'dash_rating', component: 'Rating', value: { path: '/feedback/stars' }, max: 5 },
+          { id: 'page_activity', component: 'Column', children: ['oncall_row', 'activity_title', 'events_timeline', 'faq_title', 'faq_acc'] },
+          { id: 'oncall_row', component: 'Row', children: ['oncall_avatar', 'oncall_col', 'live_badge'], align: 'center' },
+          { id: 'oncall_avatar', component: 'Avatar', name: 'Priya Sharma' },
+          { id: 'oncall_col', component: 'Column', children: ['oncall_name', 'oncall_role'], weight: 1 },
+          { id: 'oncall_name', component: 'Text', text: 'Priya Sharma', variant: 'h4' },
+          { id: 'oncall_role', component: 'Text', text: 'On-call analyst · replies in ~15 min', variant: 'caption' },
+          { id: 'live_badge', component: 'Badge', text: 'Live', tone: 'success' },
+          { id: 'activity_title', component: 'Text', text: 'Recent activity', variant: 'h3' },
+          { id: 'events_timeline', component: 'Timeline', items: { path: '/events' } },
+          { id: 'faq_title', component: 'Text', text: 'Analyst notes', variant: 'h3' },
+          { id: 'faq_acc', component: 'Accordion', items: [ { title: 'Why did signups spike on Thursday?', child: 'faq_a1' }, { title: 'How is churn calculated?', child: 'faq_a2' }, { title: 'What counts as an active user?', child: 'faq_a3' } ] },
+          { id: 'faq_a1', component: 'Text', text: 'A Product Hunt feature drove **+38%** signups vs. the trailing average. Paid CAC was unaffected.', variant: 'body' },
+          { id: 'faq_a2', component: 'Text', text: 'Churn = accounts cancelled this month ÷ accounts active at month start, weighted by MRR.', variant: 'body' },
+          { id: 'faq_a3', component: 'Text', text: 'Any account with **3+ sessions** and at least one core action (report created, alert configured) in the last 7 days.', variant: 'body' }
+        ]
+      }
+    },
+    {
+      version: 'v0.9.1',
+      updateDataModel: {
+        surfaceId: 'demo_studio_analytics', path: '/',
+        value: {
+          nav: { page: 0 },
+          metrics: {
+            signups: [
+              { label: 'Mon', value: 132 }, { label: 'Tue', value: 181 }, { label: 'Wed', value: 156 },
+              { label: 'Thu', value: 258 }, { label: 'Fri', value: 204 }, { label: 'Sat', value: 88 }, { label: 'Sun', value: 74 }
+            ],
+            wau: [18400, 19250, 20100, 21480, 22930, 24318],
+            channels: [
+              { label: 'Organic', value: 46 }, { label: 'Paid', value: 28 }, { label: 'Referral', value: 17 }, { label: 'Social', value: 9 }
+            ]
+          },
+          customers: [
+            { name: 'Umbrella Health', plan: 'Enterprise', seats: 310, mrr: '$6,200', health: 'Excellent' },
+            { name: 'Northwind Labs', plan: 'Enterprise', seats: 240, mrr: '$4,800', health: 'Good' },
+            { name: 'Acme Corp', plan: 'Growth', seats: 85, mrr: '$1,700', health: 'Good' },
+            { name: 'Globex Media', plan: 'Growth', seats: 64, mrr: '$1,280', health: 'At risk' },
+            { name: 'Initech', plan: 'Starter', seats: 12, mrr: '$240', health: 'Good' }
+          ],
+          goals: { q3Revenue: 68 },
+          feedback: { stars: 4 },
+          events: [
+            { title: 'Deploy v2.14.0 completed', description: 'Rolled out to 100% of traffic with zero error-budget burn.', time: 'Today 09:12' },
+            { title: 'Signup spike detected', description: '+38% vs. trailing average, driven by a Product Hunt feature.', time: 'Thu 14:30' },
+            { title: 'Churn alert resolved', description: 'Two enterprise accounts renewed after CS outreach.', time: 'Wed 11:05' },
+            { title: 'Slack integration shipped', description: 'Real-time alerts now available on Growth and Enterprise plans.', time: 'Mon 16:48' }
+          ]
+        }
+      }
+    }
+  ];
+
   window.A2UI_EXAMPLES = [
     {
       id: 'demo-contact',
@@ -125,6 +206,14 @@
       desc: 'Instant demo — tabs, templated lists, sliders, formatString bindings.',
       badge: 'Instant demo',
       demo: travelDemo
+    },
+    {
+      id: 'demo-studio-analytics',
+      icon: 'home',
+      title: 'Analytics app',
+      desc: 'Instant demo — a multi-page app with Pages navigation, hero, KPI stat cards, SVG charts, a data table, timeline and rating. Studio extended catalog.',
+      badge: 'Instant demo',
+      demo: studioAnalyticsDemo
     },
     {
       id: 'p-restaurant',
