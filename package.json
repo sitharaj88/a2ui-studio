@@ -2,7 +2,7 @@
   "name": "a2ui-studio",
   "displayName": "A2UI Studio",
   "description": "Experiment with the A2UI protocol (a2ui.org) \u2014 generate live, agent-driven UIs with GitHub Copilot, Claude, OpenAI, Gemini, or Ollama, rendered right inside VS Code.",
-  "version": "0.4.2",
+  "version": "1.0.0",
   "publisher": "sitharaj",
   "license": "Apache-2.0",
   "repository": {
@@ -107,7 +107,7 @@
           {
             "id": "a2ui.step.demo",
             "title": "Play an instant demo",
-            "description": "Two prerecorded A2UI streams render with zero AI setup \u2014 feel the protocol in seconds from the Gallery view.",
+            "description": "Prerecorded A2UI streams \u2014 including a three-page Analytics app \u2014 render with zero AI setup, so you feel the protocol in seconds from the Gallery view.",
             "media": {
               "markdown": "media/walkthrough/demo.md"
             }
