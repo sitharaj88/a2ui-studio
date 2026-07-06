@@ -2235,3 +2235,58 @@ body.no-motion *, body.no-motion *::before, body.no-motion *::after {
 }
 
 .a2-silent-badge svg { width: 11px; height: 11px; }
+
+/* ==========================================================================
+   Responsive: narrow webview panels (split editors, half-width windows)
+   ========================================================================== */
+.topbar { flex-wrap: wrap; row-gap: 8px; }
+
+@media (max-width: 760px) {
+  /* Playground stacks: canvas on top, chat docked below (still always usable) */
+  .playground { flex-direction: column; }
+  .canvas-wrap { order: 1; }
+  .chat-pane {
+    order: 2;
+    width: 100%;
+    max-height: 46%;
+    min-height: 190px;
+    border-right: none;
+    border-top: 1px solid var(--border);
+  }
+  .canvas { padding: 14px 12px 20px; }
+  .view-title { font-size: 14px; }
+  .controls .control > span { display: none; } /* drop "Provider"/"Model" labels */
+  .control select, .control input { min-width: 110px; max-width: 160px; }
+  .arena { padding: 12px; gap: 10px; }
+  .arena-composer { min-width: 0; width: 100%; }
+  .dash { padding: 14px 14px 24px; gap: 12px; }
+  .dash-hero { padding: 18px 20px; }
+  .dash-hero h2 { font-size: 21px; }
+  .gallery-page { padding: 16px; }
+  .settings-page { padding: 14px 12px 28px; }
+  .surfaces { gap: 14px; }
+  .replay-bar { flex-wrap: wrap; }
+}
+
+@media (max-width: 480px) {
+  .ghost-btn > span { display: none; } /* API key / Reset become icon-only */
+  .ghost-btn { padding: 5px 8px; }
+  .control select, .control input { min-width: 84px; max-width: 120px; }
+  .stat-grid { grid-template-columns: repeat(auto-fit, minmax(122px, 1fr)); }
+  .surface-body { padding: 12px; }
+  .a2-hero-title { font-size: var(--type-headline-size); }
+  .chips-row { display: none; } /* reclaim vertical space for the chat log */
+}
+
+/* StatCards reflow like a grid inside wrapping Rows */
+.a2-stat { flex: 1 1 150px; min-width: 140px; }
+
+/* Surfaces rendered in the arena's half-width columns get compact treatment */
+.arena-canvas .a2-hero-title { font-size: var(--type-headline-size); }
+.arena-canvas .a2-hero { padding: var(--sp-5); }
+.arena-canvas .a2-chart-donut .a2-chart-svg { max-width: 140px; }
+.arena-canvas .a2-table-wrap { max-height: 240px; }
+.arena-canvas .surface-body { padding: 14px; }
+
+/* Live-preview editor panes are often narrow */
+.mode-editor .canvas { padding: 12px 12px 20px; }
