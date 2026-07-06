@@ -112,4 +112,24 @@ A2UI is an Apache-2.0 licensed open project created by Google (with contribution
 
 ---
 
+## 👤 Author
+
+**Sitharaj Seenivasan**
+
+- 🌐 Website: [sitharaj.in](https://sitharaj.in)
+- 💼 LinkedIn: [sitharaj08](https://www.linkedin.com/in/sitharaj08)
+- 💻 GitHub: [sitharaj88](https://github.com/sitharaj88)
+
+## ☕ Support
+
+If this project helps you, consider buying me a coffee — it keeps the work going.
+
+[![Buy Me A Coffee](https://img.shields.io/badge/Buy%20Me%20A%20Coffee-support-FFDD00?logo=buy-me-a-coffee&logoColor=black)](https://buymeacoffee.com/sitharaj88)
+
+## 📄 License
+
+Licensed under the [Apache License 2.0](LICENSE). © 2026 Sitharaj Seenivasan.
+
+---
+
 *This extension is a community experiment and is not affiliated with Google or the A2UI project.*
