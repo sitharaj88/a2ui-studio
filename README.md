@@ -6,7 +6,8 @@ Describe any UI in plain language and watch an AI agent stream live **A2UI v0.9.
 
 ## ✨ Features
 
-- **Live A2UI renderer** — a complete client implementation of the A2UI v0.9.1 basic catalog: `Card`, `Row`/`Column`/`List` (including templated children), `Tabs`, `Modal`, `TextField`, `ChoicePicker`, `Slider`, `DateTimeInput`, `CheckBox`, `Button`, media components and more.
+- **Live A2UI renderer** — a complete client implementation of the A2UI v0.9.1 basic catalog (`Card`, `Row`/`Column`/`List` with templated children, `Tabs`, `Modal`, `TextField`, `ChoicePicker`, `Slider`, `DateTimeInput`, `CheckBox`, `Button`, media…), styled with a **Material 3 / Fluent design system** — floating-label fields, button ripple, segmented pickers, sliding tabs, elevation and state layers, in both light and dark themes.
+- **Studio Extended Catalog** — 12 modern components on top of the basic set so agents can build real apps: **Pages** (multi-page navigation the agent can drive), **Stepper** wizards, **Hero** headers, **StatCard** KPIs, **Chart** (bar/line/donut, pure SVG), **Table**, **Timeline**, **Accordion**, **Rating**, **ProgressBar**, **Avatar**, **Badge**.
 - **Any AI provider**:
   - **GitHub Copilot** via the VS Code Language Model API — zero configuration if you have Copilot
   - **Anthropic Claude**, **OpenAI**, **Google Gemini** — bring your own API key (stored in VS Code secret storage)
@@ -17,7 +18,7 @@ Describe any UI in plain language and watch an AI agent stream live **A2UI v0.9.
 - **Two-way data binding** — type in a bound `TextField` and watch every dependent binding (and the Data Model inspector) update live.
 - **Action round-trips** — click a rendered `Button` and the action event + current data model are sent back to the agent, which responds with new A2UI messages.
 - **Inspectors** — live views of the raw message stream (with validation errors), each surface's data model, and the action log.
-- **Instant demos** — two prerecorded example streams render with no AI setup at all, so you can feel the protocol in seconds.
+- **Instant demos** — prerecorded example streams (including a three-page **Analytics app**) render with no AI setup at all, so you can feel the protocol in seconds.
 - **Live preview editor** — open any `*.a2ui.json(l)` file with the **A2UI Live Preview** editor (right-click → Open With) and watch your edits re-render as you type.
 - **Component inspector** — toggle Inspect on the canvas, click any component to see its JSON definition and live data bindings; hover a stream message to flash the components it created.
 - **Model arena** — one prompt, two providers side by side, with message/validity/latency stats.
@@ -50,7 +51,7 @@ Commit an `a2ui.config.json` (or `.a2ui/config.json`) to your workspace to share
 
 ```json
 {
-  "$schema": "https://raw.githubusercontent.com/sitharaj/a2ui-studio/main/schemas/a2ui.config.schema.json",
+  "$schema": "https://raw.githubusercontent.com/sitharaj88/a2ui-studio/main/schemas/a2ui.config.schema.json",
   "defaultProfile": "claude",
   "autoRepair": true,
   "systemPromptAppend": "Always use #0F62FE as primaryColor. Formal tone.",

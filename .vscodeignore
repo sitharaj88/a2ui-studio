@@ -7,3 +7,7 @@ esbuild.js
 tsconfig.json
 **/*.map
 .gitignore
+*.vsix
+PROMPTS.md.bak
+.claude/**
+memory/**

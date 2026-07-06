@@ -54,7 +54,7 @@ const ACTIVE_PROFILE_KEY = 'a2ui.activeProfile';
 export const CONFIG_FILE_NAMES = ['a2ui.config.json', '.a2ui/config.json'];
 
 export const CONFIG_TEMPLATE = `{
-  "$schema": "https://raw.githubusercontent.com/sitharaj/a2ui-studio/main/schemas/a2ui.config.schema.json",
+  "$schema": "https://raw.githubusercontent.com/sitharaj88/a2ui-studio/main/schemas/a2ui.config.schema.json",
   "defaultProfile": "copilot",
   "autoRepair": true,
   "systemPromptAppend": "",
