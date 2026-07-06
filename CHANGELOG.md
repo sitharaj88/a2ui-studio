@@ -1,5 +1,15 @@
 # Changelog
 
+## 0.4.2 — 2026-07-06
+
+### Fixed
+- **StatCard clipping & responsive KPI grid** — StatCards now use a vertical layout so values never clip, and any Row/Column/List of StatCards becomes a responsive auto-fit grid that reflows a 4-KPI row to 2×2 or 1-up as the surface narrows.
+
+## 0.4.1 — 2026-07-06
+
+### Changed
+- **Responsive pass for narrow panels** — the playground stacks vertically below 760px (canvas above a docked chat pane), topbar controls collapse progressively, and dashboard/gallery/settings tighten on small widths so the studio stays usable in split editors and half-width windows.
+
 ## 0.4.0 — 2026-07-06
 
 ### Added
