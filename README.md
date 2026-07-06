@@ -2,7 +2,22 @@
 
 **Experiment with [A2UI](https://a2ui.org) — Google's open protocol for agent-driven interfaces — right inside VS Code.**
 
+[![VS Code Marketplace](https://img.shields.io/visual-studio-marketplace/v/sitharaj.a2ui-studio?label=Marketplace&logo=visual-studio-code&color=6C8EEF)](https://marketplace.visualstudio.com/items?itemName=sitharaj.a2ui-studio)
+[![Installs](https://img.shields.io/visual-studio-marketplace/i/sitharaj.a2ui-studio?color=22B8A0)](https://marketplace.visualstudio.com/items?itemName=sitharaj.a2ui-studio)
+[![Rating](https://img.shields.io/visual-studio-marketplace/r/sitharaj.a2ui-studio?color=B06CEF)](https://marketplace.visualstudio.com/items?itemName=sitharaj.a2ui-studio)
+[![License](https://img.shields.io/badge/license-Apache--2.0-blue)](LICENSE)
+
 Describe any UI in plain language and watch an AI agent stream live **A2UI v0.9.1** protocol messages that render as beautiful, fully interactive surfaces: forms, wizards, dashboards, product cards — with real data binding, validation, and action round-trips back to the agent.
+
+## 📦 Install
+
+Install from the **[Visual Studio Marketplace](https://marketplace.visualstudio.com/items?itemName=sitharaj.a2ui-studio)**, or inside VS Code open the Extensions view and search **“A2UI Studio”**. From the command line:
+
+```bash
+code --install-extension sitharaj.a2ui-studio
+```
+
+Then run **`A2UI: Open Playground`** from the command palette and click an instant demo — no API key needed to start.
 
 ## ✨ Features
 
