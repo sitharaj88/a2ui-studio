@@ -2,7 +2,7 @@
   "name": "a2ui-studio",
   "displayName": "A2UI Studio",
   "description": "Experiment with the A2UI protocol (a2ui.org) \u2014 generate live, agent-driven UIs with GitHub Copilot, Claude, OpenAI, Gemini, or Ollama, rendered right inside VS Code.",
-  "version": "0.4.1",
+  "version": "0.4.2",
   "publisher": "sitharaj",
   "license": "Apache-2.0",
   "repository": {
