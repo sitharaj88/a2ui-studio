@@ -29,6 +29,7 @@
       "description": "Per-provider gateway base URLs (AWS/LiteLLM-style proxies). Model lists are fetched from these URLs; API keys become optional.",
       "properties": {
         "anthropic": { "type": "string" },
+        "zai": { "type": "string" },
         "openai": { "type": "string" },
         "gemini": { "type": "string" }
       }
@@ -68,7 +69,7 @@
           },
           "provider": {
             "type": "string",
-            "enum": ["copilot", "anthropic", "openai", "gemini", "ollama"],
+            "enum": ["copilot", "anthropic", "zai", "openai", "gemini", "ollama"],
             "description": "AI provider used by this profile."
           },
           "model": {
@@ -84,13 +85,42 @@
             "type": "number",
             "minimum": 0,
             "maximum": 2,
-            "description": "Sampling temperature for this profile."
+            "description": "Sampling temperature for this profile. Ignored by Claude 5-generation models."
           },
           "maxTokens": {
             "type": "integer",
             "minimum": 256,
             "maximum": 128000,
             "description": "Maximum output tokens per turn."
+          },
+          "effort": {
+            "type": "string",
+            "enum": ["low", "medium", "high", "xhigh", "max"],
+            "description": "Claude only: reasoning effort for design turns (new surfaces)."
+          },
+          "actionModel": {
+            "type": "string",
+            "description": "Claude only: model for action round-trips and repair turns (the builder). Empty string reuses the design model.",
+            "examples": ["claude-sonnet-5"]
+          },
+          "actionEffort": {
+            "type": "string",
+            "enum": ["low", "medium", "high", "xhigh", "max"],
+            "description": "Claude only: reasoning effort for action round-trips and repair turns."
+          },
+          "showThinking": {
+            "type": "boolean",
+            "description": "Claude only: stream summarized reasoning into the agent chat."
+          },
+          "plan": {
+            "type": "string",
+            "enum": ["coding", "general"],
+            "description": "Z.ai only: GLM Coding Plan endpoint or the general pay-as-you-go endpoint. Keys are not interchangeable."
+          },
+          "reasoningEffort": {
+            "type": "string",
+            "enum": ["low", "high", "max"],
+            "description": "Z.ai only: GLM thinking depth."
           }
         }
       }

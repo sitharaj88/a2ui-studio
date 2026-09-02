@@ -1,4 +1,7 @@
 import * as vscode from 'vscode';
+import { ClaudeUsage, listClaudeModels, streamClaude } from './claude';
+import { ClaudeEffort, CLAUDE_MODELS, DEFAULT_CLAUDE_OPTIONS } from './claudeRequest';
+import { buildGlmRequest, DEFAULT_GLM_OPTIONS, glmBaseUrl, GLM_MODELS, GlmPlan, GlmReasoningEffort, parseGlmChunk } from './glm';
 
 export interface ChatMessage {
   role: 'system' | 'user' | 'assistant';
@@ -9,11 +12,12 @@ export interface StreamHandle {
   cancel(): void;
 }
 
-export type ProviderId = 'copilot' | 'anthropic' | 'openai' | 'gemini' | 'ollama' | 'a2a';
+export type ProviderId = 'copilot' | 'anthropic' | 'zai' | 'openai' | 'gemini' | 'ollama' | 'a2a';
 
 export const PROVIDER_LABELS: Record<ProviderId, string> = {
   copilot: 'GitHub Copilot',
   anthropic: 'Anthropic Claude',
+  zai: 'Z.ai GLM (Coding Plan)',
   openai: 'OpenAI',
   gemini: 'Google Gemini',
   ollama: 'Ollama (local)',
@@ -22,7 +26,8 @@ export const PROVIDER_LABELS: Record<ProviderId, string> = {
 
 export const DEFAULT_MODELS: Record<ProviderId, string> = {
   copilot: '',
-  anthropic: 'claude-sonnet-5',
+  anthropic: 'claude-opus-5',
+  zai: 'glm-5.3',
   openai: 'gpt-4o',
   gemini: 'gemini-2.0-flash',
   ollama: 'llama3.2',
@@ -37,11 +42,8 @@ export interface ModelInfo {
 /** Curated fallbacks when a provider's model list cannot be fetched. */
 const FALLBACK_MODELS: Record<ProviderId, ModelInfo[]> = {
   copilot: [],
-  anthropic: [
-    { id: 'claude-sonnet-5', label: 'Claude Sonnet 5' },
-    { id: 'claude-opus-4-8', label: 'Claude Opus 4.8' },
-    { id: 'claude-haiku-4-5-20251001', label: 'Claude Haiku 4.5' }
-  ],
+  anthropic: CLAUDE_MODELS.map((m) => ({ id: m.id, label: m.label })),
+  zai: GLM_MODELS.map((m) => ({ id: m.id, label: m.label })),
   openai: [
     { id: 'gpt-4o', label: 'GPT-4o' },
     { id: 'gpt-4o-mini', label: 'GPT-4o mini' },
@@ -68,6 +70,8 @@ export interface ListModelsOptions {
   /** Custom gateway base URL — models are fetched from it instead of the vendor API. */
   baseUrl?: string;
   ollamaUrl?: string;
+  /** Z.ai: which plan endpoint to use. */
+  zaiPlan?: GlmPlan;
 }
 
 /** Lists selectable models for a provider, falling back to curated defaults. */
@@ -95,20 +99,29 @@ export async function listModels(
         return { models: out };
       }
       case 'anthropic': {
-        const key = await secrets.get(secretKeyFor('anthropic'));
+        const key = await resolveApiKey('anthropic', secrets);
         if (!key && !opts.baseUrl) {
           return { models: FALLBACK_MODELS.anthropic, note: 'Set an API key (or a gateway URL) to list your available models.' };
         }
-        const base = (opts.baseUrl || 'https://api.anthropic.com').replace(/\/$/, '');
-        const res = await fetch(`${base}/v1/models?limit=100`, {
-          headers: { ...(key ? { 'x-api-key': key } : {}), 'anthropic-version': '2023-06-01' }
-        });
-        if (!res.ok) throw new Error(`HTTP ${res.status}`);
-        const data: any = await res.json();
-        const models = (data.data ?? []).map((m: any) => ({ id: m.id, label: m.display_name || m.id }));
+        const models = await listClaudeModels(key, opts.baseUrl);
         return models.length
           ? { models, note: gatewayNote ? `Live model list${gatewayNote}.` : undefined }
           : { models: FALLBACK_MODELS.anthropic };
+      }
+      case 'zai': {
+        const key = await secrets.get(secretKeyFor('zai'));
+        if (!key) {
+          return { models: FALLBACK_MODELS.zai, note: 'Set your Z.ai API key to use GLM. Showing the Coding Plan models.' };
+        }
+        const base = glmBaseUrl(opts.zaiPlan ?? DEFAULT_GLM_OPTIONS.plan, opts.baseUrl);
+        const res = await fetch(`${base}/models`, { headers: { authorization: `Bearer ${key}` } });
+        if (!res.ok) throw new Error(`HTTP ${res.status}`);
+        const data: any = await res.json();
+        const live = (data.data ?? []).map((m: any) => String(m.id)).filter((id: string) => /glm/i.test(id));
+        if (!live.length) return { models: FALLBACK_MODELS.zai };
+        const curated = FALLBACK_MODELS.zai.filter((m) => live.includes(m.id.replace(/\[1m\]$/, '')));
+        const extra = live.filter((id: string) => !curated.some((m) => m.id === id)).sort().map((id: string) => ({ id, label: id }));
+        return { models: [...curated, ...extra] };
       }
       case 'openai': {
         const key = await secrets.get(secretKeyFor('openai'));
@@ -190,7 +203,7 @@ export interface GenerateOptions {
   secrets: vscode.SecretStorage;
   token: vscode.CancellationToken;
   onText(chunk: string): void;
-  /** Sampling temperature (ignored by providers that don't support it). */
+  /** Sampling temperature (ignored by providers/models that don't support it). */
   temperature?: number;
   /** Max output tokens per turn. */
   maxTokens?: number;
@@ -200,6 +213,22 @@ export interface GenerateOptions {
   ollamaUrl?: string;
   /** Called with the human-readable label of the model actually used. */
   onModel?(label: string): void;
+  /** Claude only: reasoning effort for this turn. */
+  effort?: ClaudeEffort;
+  /** Claude only: stream summarized reasoning. */
+  showThinking?: boolean;
+  /** Claude only: allow server-side refusal fallback. */
+  refusalFallback?: boolean;
+  /** Z.ai only: coding-plan or general endpoint. */
+  zaiPlan?: GlmPlan;
+  /** Z.ai only: GLM reasoning effort. */
+  reasoningEffort?: GlmReasoningEffort;
+  /** Streamed reasoning summary (Claude). */
+  onThinking?(chunk: string): void;
+  /** Token usage for the completed turn (Claude). */
+  onUsage?(usage: ClaudeUsage): void;
+  /** Non-fatal notices worth surfacing to the user. */
+  onNote?(text: string): void;
 }
 
 /** Streams a completion from the selected provider, invoking onText per chunk. */
@@ -215,6 +244,8 @@ export async function generate(opts: GenerateOptions): Promise<void> {
       return generateCopilot(opts);
     case 'anthropic':
       return generateAnthropic(opts);
+    case 'zai':
+      return generateZai(opts);
     case 'openai':
       return generateOpenAI(opts);
     case 'gemini':
@@ -231,7 +262,18 @@ export function secretKeyFor(provider: ProviderId): string {
 }
 
 /**
- * Returns the stored API key. Without a custom baseUrl the key is mandatory;
+ * Stored key, else (for Claude) the ANTHROPIC_API_KEY the extension host was
+ * launched with — the same credential the official SDK would pick up.
+ */
+async function resolveApiKey(provider: ProviderId, secrets: vscode.SecretStorage): Promise<string> {
+  const stored = await secrets.get(secretKeyFor(provider));
+  if (stored) return stored;
+  if (provider === 'anthropic') return process.env.ANTHROPIC_API_KEY ?? '';
+  return '';
+}
+
+/**
+ * Returns the API key. Without a custom baseUrl the key is mandatory;
  * with a gateway (which often does its own auth) a missing key is allowed and
  * auth headers are simply omitted.
  */
@@ -240,18 +282,42 @@ async function requireApiKey(
   secrets: vscode.SecretStorage,
   baseUrl?: string
 ): Promise<string> {
-  const key = await secrets.get(secretKeyFor(provider));
+  const key = await resolveApiKey(provider, secrets);
   if (!key && !baseUrl) {
     throw new Error(
       `No API key set for ${PROVIDER_LABELS[provider]}. Run the "A2UI: Set AI Provider API Key" command first.`
     );
   }
-  return key ?? '';
+  return key;
 }
 
 // ---------------------------------------------------------------------------
 // GitHub Copilot via the VS Code Language Model API
 // ---------------------------------------------------------------------------
+
+/** Lower-case, with separators removed so "gpt-4.1" and "gpt_4_1" compare equal. */
+function normalizeModelKey(value: string): string {
+  return value.toLowerCase().replace(/[\s._-]+/g, '');
+}
+
+/**
+ * Resolves a user-selected Copilot model. Exact (family/id/name) wins; then a
+ * unique family or id that extends the requested one, or that the requested
+ * one extends. Ambiguous matches return undefined so nothing is substituted.
+ */
+export function matchCopilotModel<T extends { id: string; family: string; name?: string }>(
+  models: readonly T[],
+  wanted: string
+): T | undefined {
+  const key = normalizeModelKey(wanted);
+  if (!key) return undefined;
+  const keysOf = (m: T) => [m.family, m.id, m.name ?? ''].filter(Boolean).map(normalizeModelKey);
+  const exact = models.find((m) => keysOf(m).includes(key));
+  if (exact) return exact;
+  const related = models.filter((m) => keysOf(m).some((k) => k.startsWith(key) || key.startsWith(k)));
+  const families = new Set(related.map((m) => m.family || m.id));
+  return families.size === 1 ? related[0] : undefined;
+}
 
 async function generateCopilot(opts: GenerateOptions): Promise<void> {
   const all = await vscode.lm.selectChatModels({ vendor: 'copilot' });
@@ -262,15 +328,13 @@ async function generateCopilot(opts: GenerateOptions): Promise<void> {
   }
   let preferred: vscode.LanguageModelChat;
   if (opts.model) {
-    // Explicit selection is a contract: exact match or a hard error — never
-    // silently substitute a different (potentially premium) model.
-    const wanted = opts.model.toLowerCase();
-    const match =
-      all.find((m) => m.family.toLowerCase() === wanted) ??
-      all.find((m) => m.id.toLowerCase() === wanted) ??
-      all.find((m) => (m.name || '').toLowerCase() === wanted);
+    // Explicit selection is a contract: never silently substitute a different
+    // (potentially premium) model. Exact match first; otherwise accept a
+    // unique variant of the same family (VS Code can rename a family between
+    // listing and use, e.g. "oswe-vscode" → "oswe-vscode-modelD").
+    const match = matchCopilotModel(all, opts.model);
     if (!match) {
-      const families = [...new Set(all.map((m) => m.family))].join(', ');
+      const families = [...new Set(all.map((m) => m.family || m.id))].join(', ');
       throw new Error(
         `Copilot model "${opts.model}" is not available in this VS Code. Available families: ${families}. Pick one from the model dropdown (it lists live Copilot models).`
       );
@@ -346,33 +410,52 @@ function sseData(line: string): string | undefined {
 }
 
 // ---------------------------------------------------------------------------
-// Anthropic
+// Anthropic Claude — official SDK (see claude.ts)
 // ---------------------------------------------------------------------------
 
 async function generateAnthropic(opts: GenerateOptions): Promise<void> {
   const key = await requireApiKey('anthropic', opts.secrets, opts.baseUrl);
-  const system = opts.messages.filter((m) => m.role === 'system').map((m) => m.content).join('\n\n');
-  const messages = opts.messages
-    .filter((m) => m.role !== 'system')
-    .map((m) => ({ role: m.role, content: m.content }));
+  await streamClaude({
+    apiKey: key,
+    baseUrl: opts.baseUrl,
+    model: opts.model || DEFAULT_MODELS.anthropic,
+    messages: opts.messages,
+    maxTokens: opts.maxTokens ?? 16000,
+    effort: opts.effort ?? DEFAULT_CLAUDE_OPTIONS.effort,
+    showThinking: opts.showThinking ?? DEFAULT_CLAUDE_OPTIONS.showThinking,
+    refusalFallback: opts.refusalFallback ?? DEFAULT_CLAUDE_OPTIONS.refusalFallback,
+    temperature: opts.temperature,
+    token: opts.token,
+    onText: opts.onText,
+    onThinking: opts.onThinking,
+    onUsage: opts.onUsage,
+    onNote: opts.onNote
+  });
+}
 
+// ---------------------------------------------------------------------------
+// Z.ai GLM — OpenAI-compatible chat completions with reasoning_content
+// ---------------------------------------------------------------------------
+
+async function generateZai(opts: GenerateOptions): Promise<void> {
+  const key = await requireApiKey('zai', opts.secrets);
+  const plan = opts.zaiPlan ?? DEFAULT_GLM_OPTIONS.plan;
+  const base = glmBaseUrl(plan, opts.baseUrl);
+  let sawText = false;
   await streamHttp(
-    `${(opts.baseUrl || 'https://api.anthropic.com').replace(/\/$/, '')}/v1/messages`,
+    `${base}/chat/completions`,
     {
       method: 'POST',
-      headers: {
-        'content-type': 'application/json',
-        ...(key ? { 'x-api-key': key } : {}),
-        'anthropic-version': '2023-06-01'
-      },
-      body: JSON.stringify({
-        model: opts.model || DEFAULT_MODELS.anthropic,
-        max_tokens: opts.maxTokens ?? 8192,
-        temperature: opts.temperature,
-        stream: true,
-        system,
-        messages
-      })
+      headers: { 'content-type': 'application/json', authorization: `Bearer ${key}` },
+      body: JSON.stringify(
+        buildGlmRequest({
+          model: opts.model || DEFAULT_MODELS.zai,
+          messages: opts.messages,
+          maxTokens: opts.maxTokens,
+          temperature: opts.temperature,
+          reasoningEffort: opts.reasoningEffort ?? DEFAULT_GLM_OPTIONS.reasoningEffort
+        })
+      )
     },
     opts.token,
     (line) => {
@@ -380,18 +463,41 @@ async function generateAnthropic(opts: GenerateOptions): Promise<void> {
       if (!data) return;
       try {
         const evt = JSON.parse(data);
-        if (evt.type === 'content_block_delta' && evt.delta?.type === 'text_delta') {
-          opts.onText(evt.delta.text);
+        if (evt.error) throw new Error(evt.error.message || 'GLM returned an error');
+        const { text, reasoning } = parseGlmChunk(evt);
+        if (reasoning) opts.onThinking?.(reasoning);
+        if (text) {
+          sawText = true;
+          opts.onText(text);
         }
-        if (evt.type === 'error') {
-          throw new Error(evt.error?.message ?? 'Anthropic stream error');
+        const usage = evt.usage;
+        if (usage && typeof usage.prompt_tokens === 'number') {
+          opts.onUsage?.({
+            model: evt.model || opts.model || DEFAULT_MODELS.zai,
+            input: usage.prompt_tokens,
+            output: usage.completion_tokens ?? 0,
+            cacheRead: usage.prompt_tokens_details?.cached_tokens ?? 0,
+            cacheWrite: 0
+          });
         }
       } catch (e) {
-        if (e instanceof SyntaxError) return; // partial frame; ignore
+        if (e instanceof SyntaxError) return; // partial frame
         throw e;
       }
     }
-  );
+  ).catch((e) => {
+    const msg = e instanceof Error ? e.message : String(e);
+    if (/HTTP 401/.test(msg)) {
+      throw new Error(
+        `Z.ai rejected the API key for the ${plan} endpoint. Coding Plan keys only work with the coding endpoint (and vice versa) — check the plan in Settings → GLM.`
+      );
+    }
+    if (/HTTP 429/.test(msg)) throw new Error('Z.ai rate limit or plan quota reached — wait a moment and try again.');
+    throw e;
+  });
+  if (!sawText && !opts.token.isCancellationRequested) {
+    opts.onNote?.('GLM streamed reasoning but no A2UI output — try lowering reasoning effort or raising max tokens.');
+  }
 }
 
 // ---------------------------------------------------------------------------

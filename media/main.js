@@ -1440,6 +1440,9 @@
     turnPending: false,
     turnEnvelopes: 0,
     turnInvalid: 0,
+    thinking: '',
+    claudeModels: [],
+    usage: { turns: 0, input: 0, output: 0, cacheRead: 0, cacheWrite: 0, cost: 0, lastModel: '', lastKind: '' },
     startedAt: Date.now(),
     appearance: Object.assign(
       { accent: '#6C8EEF', accentB: '#B06CEF', surfaceWidth: 600, density: 'comfortable', motion: true },
@@ -1528,6 +1531,7 @@
               <div class="stat-card"><span class="stat-icon s-c">${iconSvg('send')}</span><div><div class="stat-value" id="stat-actions">0</div><div class="stat-label">Actions round-tripped</div></div></div>
               <div class="stat-card"><span class="stat-icon s-d">${iconSvg('warning')}</span><div><div class="stat-value" id="stat-invalid">0</div><div class="stat-label">Invalid messages</div></div></div>
               <div class="stat-card"><span class="stat-icon s-e">${iconSvg('calendarToday')}</span><div><div class="stat-value" id="stat-uptime">0m</div><div class="stat-label">Session time</div></div></div>
+              <div class="stat-card" id="stat-tokens-card" hidden><span class="stat-icon s-a">${iconSvg('payment')}</span><div><div class="stat-value" id="stat-tokens">0</div><div class="stat-label">Claude tokens · <span id="stat-cost">$0.00</span></div></div></div>
             </div>
             <div class="dash-grid">
               <div class="dash-card">
@@ -1545,6 +1549,10 @@
               <div class="dash-card">
                 <h3>${iconSvg('play', 'card-icon')} Quick start</h3>
                 <div id="dash-quick" class="quickstart"></div>
+              </div>
+              <div class="dash-card" id="dash-claude-card">
+                <h3>${iconSvg('star', 'card-icon')} Claude 5 agent</h3>
+                <div id="dash-claude" class="provider-info"></div>
               </div>
             </div>
           </div>
@@ -1619,6 +1627,7 @@
               <div class="arena-composer">
                 <textarea id="arena-prompt" rows="2" placeholder="e.g. “an airline seat picker with a legend and confirm button”"></textarea>
                 <button class="cta" id="arena-run">${iconSvg('fastForward', 'btn-icon')}<span>Run both</span></button>
+                <button class="ghost-btn" id="arena-preset-claude" title="Pin side A to Claude Opus 5 and side B to Claude Sonnet 5">${iconSvg('star', 'btn-icon')}<span>Opus 5 vs Sonnet 5</span></button>
               </div>
             </div>
             <div class="arena-grid">
@@ -1788,6 +1797,8 @@
     state.chat = [];
     state.activity = [];
     state.inspected = null;
+    state.thinking = '';
+    state.usage = { turns: 0, input: 0, output: 0, cacheRead: 0, cacheWrite: 0, cost: 0, lastModel: '', lastKind: '' };
     renderChat();
     renderStreamTab();
     renderDataTab();
@@ -1836,7 +1847,7 @@
 
     populateModelSelect();
     syncArenaSelects();
-    const needsKey = ['anthropic', 'openai', 'gemini'].includes(state.provider);
+    const needsKey = ['anthropic', 'zai', 'openai', 'gemini'].includes(state.provider);
     $('#apikey-btn').style.display = needsKey ? '' : 'none';
     const info = state.providers.find((p) => p.id === state.provider);
     $('#mini-provider').innerHTML = `
@@ -1871,19 +1882,38 @@
         bubble.innerHTML = `${iconSvg('send', 'chat-ev-icon')}<span>${escapeHtml(entry.text)}</span>`;
       } else {
         const meta = entry.meta
-          ? `<span class="chat-meta">${entry.meta.envelopes} message${entry.meta.envelopes === 1 ? '' : 's'}${entry.meta.invalid ? ` · ${entry.meta.invalid} invalid` : ''}</span>`
+          ? `<span class="chat-meta">${entry.meta.envelopes} message${entry.meta.envelopes === 1 ? '' : 's'}${entry.meta.invalid ? ` · ${entry.meta.invalid} invalid` : ''}${entry.meta.model ? ` · ${escapeHtml(entry.meta.model)}` : ''}</span>`
           : '';
-        bubble.innerHTML = `<span>${escapeHtml(entry.text)}</span>${meta}`;
+        const think = entry.thinking
+          ? `<details class="chat-think"><summary>${iconSvg('visibility', 'chat-think-icon')}<span>Reasoning</span><em>${entry.thinking.split(/\s+/).length} words</em></summary><div class="chat-think-body">${escapeHtml(entry.thinking)}</div></details>`
+          : '';
+        bubble.innerHTML = `${think}<span>${escapeHtml(entry.text)}</span>${meta}`;
         if (entry.error) bubble.classList.add('chat-error');
       }
       log.appendChild(bubble);
     }
     if (state.generating) {
       const typing = el('div', 'chat-bubble chat-agent chat-typing');
-      typing.innerHTML = '<span class="tdot"></span><span class="tdot"></span><span class="tdot"></span>';
+      if (state.thinking) {
+        typing.classList.add('chat-think-live');
+        const tail = state.thinking.length > 420 ? '…' + state.thinking.slice(-420) : state.thinking;
+        typing.innerHTML = `<div class="chat-think-head">${iconSvg('visibility', 'chat-think-icon')}<span>Thinking</span><span class="tdot"></span><span class="tdot"></span><span class="tdot"></span></div><div class="chat-think-stream">${escapeHtml(tail)}</div>`;
+      } else {
+        typing.innerHTML = '<span class="tdot"></span><span class="tdot"></span><span class="tdot"></span>';
+      }
       log.appendChild(typing);
     }
     log.scrollTop = log.scrollHeight;
+  }
+
+  let chatRenderQueued = false;
+  function scheduleChatRender() {
+    if (chatRenderQueued) return;
+    chatRenderQueued = true;
+    requestAnimationFrame(() => {
+      chatRenderQueued = false;
+      renderChat();
+    });
   }
 
   // ---------------- Composer ----------------
@@ -1913,6 +1943,8 @@
     state.turnPending = true;
     state.turnEnvelopes = 0;
     state.turnInvalid = 0;
+    state.thinking = '';
+    state.usage.lastKind = '';
   }
 
   function submitPrompt(text) {
@@ -2045,6 +2077,15 @@
   }
 
   $('#arena-run').addEventListener('click', runArena);
+  $('#arena-preset-claude').addEventListener('click', () => {
+    for (const [side, model] of [['a', 'claude-opus-5'], ['b', 'claude-sonnet-5']]) {
+      const sel = $(`#arena-${side}-provider`);
+      if ([...sel.options].some((o) => o.value === 'anthropic')) sel.value = 'anthropic';
+      $(`#arena-${side}-model`).value = model;
+    }
+    if (!$('#arena-prompt').value.trim()) $('#arena-prompt').focus();
+    logActivity('star', 'Arena preset: Claude Opus 5 vs Claude Sonnet 5');
+  });
   $('#arena-prompt').addEventListener('keydown', (e) => {
     if (e.key === 'Enter' && !e.shiftKey) {
       e.preventDefault();
@@ -2116,6 +2157,11 @@
     </div>`;
   }
 
+  const EFFORTS = ['low', 'medium', 'high', 'xhigh', 'max'];
+  function effortChips(id, current) {
+    return `<div class="a2-chips" id="${id}">${EFFORTS.map((e) => `<button class="a2-chip ${e === current ? 'selected' : ''}" data-effort="${e}">${e}</button>`).join('')}</div>`;
+  }
+
   function renderSettings() {
     const page = $('#settings-page');
     const eff = state.effective;
@@ -2124,6 +2170,8 @@
       page.innerHTML = '<div class="empty-mini">Loading configuration…</div>';
       return;
     }
+    settings.claude = settings.claude || { effort: 'high', actionModel: 'claude-sonnet-5', actionEffort: 'medium', showThinking: true, refusalFallback: true };
+    settings.zai = settings.zai || { plan: 'coding', reasoningEffort: 'high' };
     const usingProfile = !!eff.activeProfile;
     const overrideNote = usingProfile
       ? `<div class="set-banner">${iconSvg('info', 'btn-icon')}<span>Profile <strong>${escapeHtml(eff.activeProfile)}</strong> from <code>a2ui.config.json</code> currently controls provider, model and generation parameters. Switch to <em>Manual</em> in the header to use the values below.</span></div>`
@@ -2144,14 +2192,46 @@
       <div class="set-section">
         <h2>${iconSvg('settings', 'card-icon')} Generation <span class="set-tag">VS Code settings</span></h2>
         ${overrideNote}
-        ${settingRow('Temperature', 'Higher values produce more varied UIs.',
+        ${settingRow('Temperature', 'Higher values produce more varied UIs. Ignored by Claude 5 models, which reject sampling parameters.',
           `<div class="range-wrap"><input type="range" id="set-temp" class="a2-slider" min="0" max="2" step="0.1" value="${settings.temperature}"><span class="range-val" id="set-temp-val">${settings.temperature}</span></div>`)}
         ${settingRow('Max output tokens', 'Upper bound per generation turn.',
-          `<input type="number" id="set-maxtok" class="set-input" min="256" max="128000" step="256" value="${settings.maxTokens}">`)}
+          `<input type="number" id="set-maxtok" class="set-input" min="256" max="128000" step="1000" value="${settings.maxTokens}">`)}
         ${settingRow('Auto-repair', 'Send one corrective turn when messages fail validation.',
           `<label class="switch"><input type="checkbox" id="set-repair" ${eff.autoRepair ? 'checked' : ''}><span class="switch-track"></span></label>`)}
         ${settingRow('System prompt additions', 'Brand voice, design rules, preferred colors — appended to the A2UI system prompt.',
           `<textarea id="set-prompt" class="set-input set-textarea" rows="4" placeholder="e.g. Always use #0F62FE as primaryColor and a formal tone.">${escapeHtml(settings.systemPromptAppend || '')}</textarea>`)}
+      </div>
+
+      <div class="set-section">
+        <h2>${iconSvg('star', 'card-icon')} Claude 5 agent <span class="set-tag">designer / builder split</span></h2>
+        ${overrideNote}
+        <div class="set-banner set-soft">${iconSvg('info', 'btn-icon')}<span><strong>Claude Opus 5</strong> designs new surfaces at full effort; <strong>Claude Sonnet 5</strong> answers button actions and repairs invalid messages — fast and cheap. Adaptive thinking and prompt caching are always on; Claude 5 models ignore the temperature slider.</span></div>
+        ${settingRow('Design effort', 'Reasoning depth for new surfaces. <code>high</code> for most work, <code>xhigh</code> for elaborate multi-page apps, <code>low</code>/<code>medium</code> for quick drafts.',
+          effortChips('set-effort', settings.claude.effort))}
+        ${settingRow('Action model', 'Handles button round-trips and auto-repair turns. Pick “same as design model” to run one model end to end.',
+          `<select id="set-action-model" class="set-input set-select">
+            <option value="" ${!settings.claude.actionModel ? 'selected' : ''}>Same as design model</option>
+            ${state.claudeModels.map((m) => `<option value="${escapeHtml(m.id)}" ${settings.claude.actionModel === m.id ? 'selected' : ''}>${escapeHtml(m.label)} — ${escapeHtml(m.role)}</option>`).join('')}
+            ${settings.claude.actionModel && !state.claudeModels.some((m) => m.id === settings.claude.actionModel) ? `<option value="${escapeHtml(settings.claude.actionModel)}" selected>${escapeHtml(settings.claude.actionModel)} (custom)</option>` : ''}
+          </select>`)}
+        ${settingRow('Action effort', 'Reasoning depth for action and repair turns. <code>medium</code> keeps round-trips snappy.',
+          effortChips('set-action-effort', settings.claude.actionEffort))}
+        ${settingRow('Show reasoning', 'Stream Claude’s summarized thinking into the chat while it designs.',
+          `<label class="switch"><input type="checkbox" id="set-thinking" ${settings.claude.showThinking ? 'checked' : ''}><span class="switch-track"></span></label>`)}
+        ${settingRow('Refusal fallback', 'If Opus 5’s safety classifiers decline a request, let the API re-run it on Anthropic’s recommended fallback model in the same call. Turn off for gateways that reject beta headers.',
+          `<label class="switch"><input type="checkbox" id="set-fallback" ${settings.claude.refusalFallback ? 'checked' : ''}><span class="switch-track"></span></label>`)}
+      </div>
+
+      <div class="set-section">
+        <h2>${iconSvg('fastForward', 'card-icon')} GLM (Z.ai) <span class="set-tag">Coding Plan</span></h2>
+        ${overrideNote}
+        <div class="set-banner set-soft">${iconSvg('info', 'btn-icon')}<span>Use your <strong>GLM Coding Plan</strong> key with GLM-5.3 and GLM-5.3-Flash. Coding Plan keys only work on the coding endpoint and general API keys only on the general one — pick the plan that matches your key. Reasoning streams into the chat like Claude's.</span></div>
+        ${settingRow('Plan / endpoint', 'Coding Plan → <code>api.z.ai/api/coding/paas/v4</code>. General → <code>api.z.ai/api/paas/v4</code> (pay-as-you-go).',
+          `<div class="a2-chips" id="set-zai-plan"><button class="a2-chip ${settings.zai.plan !== 'general' ? 'selected' : ''}" data-plan="coding">Coding Plan</button><button class="a2-chip ${settings.zai.plan === 'general' ? 'selected' : ''}" data-plan="general">General API</button></div>`)}
+        ${settingRow('Reasoning effort', 'GLM thinking depth. <code>high</code> is a good balance; <code>max</code> is deepest and slowest.',
+          `<div class="a2-chips" id="set-zai-effort">${['low', 'high', 'max'].map((e) => `<button class="a2-chip ${e === settings.zai.reasoningEffort ? 'selected' : ''}" data-effort="${e}">${e}</button>`).join('')}</div>`)}
+        ${settingRow('Z.ai base URL override', 'Optional — e.g. the China-region endpoint <code>https://open.bigmodel.cn/api/coding/paas/v4</code> or a proxy.',
+          `<input type="text" id="set-gw-zai" class="set-input mono" value="${escapeHtml((settings.baseUrls || {}).zai || '')}" spellcheck="false" placeholder="https://open.bigmodel.cn/api/coding/paas/v4">`)}
       </div>
 
       <div class="set-section">
@@ -2213,7 +2293,7 @@
     temp.addEventListener('input', () => (page.querySelector('#set-temp-val').textContent = temp.value));
     temp.addEventListener('change', () => vscode.postMessage({ type: 'setSetting', key: 'temperature', value: Number(temp.value) }));
     page.querySelector('#set-maxtok').addEventListener('change', (e) =>
-      vscode.postMessage({ type: 'setSetting', key: 'maxTokens', value: Number(e.target.value) || 8192 })
+      vscode.postMessage({ type: 'setSetting', key: 'maxTokens', value: Number(e.target.value) || 16000 })
     );
     page.querySelector('#set-repair').addEventListener('change', (e) =>
       vscode.postMessage({ type: 'setSetting', key: 'autoRepair', value: e.target.checked })
@@ -2222,9 +2302,25 @@
       vscode.postMessage({ type: 'setSetting', key: 'systemPromptAppend', value: e.target.value })
     );
 
+    page.querySelectorAll('#set-effort [data-effort]').forEach((chip) =>
+      chip.addEventListener('click', () => vscode.postMessage({ type: 'setSetting', key: 'claude.effort', value: chip.dataset.effort }))
+    );
+    page.querySelectorAll('#set-action-effort [data-effort]').forEach((chip) =>
+      chip.addEventListener('click', () => vscode.postMessage({ type: 'setSetting', key: 'claude.actionEffort', value: chip.dataset.effort }))
+    );
+    page.querySelector('#set-action-model').addEventListener('change', (e) =>
+      vscode.postMessage({ type: 'setSetting', key: 'claude.actionModel', value: e.target.value })
+    );
+    page.querySelector('#set-thinking').addEventListener('change', (e) =>
+      vscode.postMessage({ type: 'setSetting', key: 'claude.showThinking', value: e.target.checked })
+    );
+    page.querySelector('#set-fallback').addEventListener('change', (e) =>
+      vscode.postMessage({ type: 'setSetting', key: 'claude.refusalFallback', value: e.target.checked })
+    );
+
     const keyGrid = page.querySelector('#key-grid');
     for (const p of state.providers) {
-      if (!['anthropic', 'openai', 'gemini'].includes(p.id)) continue;
+      if (!['anthropic', 'zai', 'openai', 'gemini'].includes(p.id)) continue;
       const hasKey = !!state.keys[p.id];
       const row = el('div', 'key-row');
       row.innerHTML = `<span class="key-dot ${hasKey ? 'ok' : ''}"></span>
@@ -2251,6 +2347,13 @@
         vscode.postMessage({ type: 'setSetting', key: 'baseUrls', value: next });
       });
     wireGateway('#set-gw-anthropic', 'anthropic');
+    wireGateway('#set-gw-zai', 'zai');
+    page.querySelectorAll('#set-zai-plan [data-plan]').forEach((chip) =>
+      chip.addEventListener('click', () => vscode.postMessage({ type: 'setSetting', key: 'zai.plan', value: chip.dataset.plan }))
+    );
+    page.querySelectorAll('#set-zai-effort [data-effort]').forEach((chip) =>
+      chip.addEventListener('click', () => vscode.postMessage({ type: 'setSetting', key: 'zai.reasoningEffort', value: chip.dataset.effort }))
+    );
     wireGateway('#set-gw-openai', 'openai');
     wireGateway('#set-gw-gemini', 'gemini');
 
@@ -2308,6 +2411,54 @@
     return new Date(ts).toLocaleTimeString(undefined, { hour: '2-digit', minute: '2-digit', second: '2-digit' });
   }
 
+  function fmtTokens(n) {
+    if (n >= 1_000_000) return (n / 1_000_000).toFixed(2) + 'M';
+    if (n >= 10_000) return Math.round(n / 1000) + 'K';
+    if (n >= 1000) return (n / 1000).toFixed(1) + 'K';
+    return String(n);
+  }
+
+  function fmtCost(usd) {
+    if (!usd) return '$0.00';
+    return usd < 0.01 ? '<$0.01' : '$' + usd.toFixed(usd < 1 ? 3 : 2);
+  }
+
+  function renderClaudeCard() {
+    const card = $('#dash-claude-card');
+    if (!card) return;
+    const eff = state.effective;
+    const claude = eff && eff.claude ? eff.claude : null;
+    const u = state.usage;
+    const isClaude = state.provider === 'anthropic';
+    card.hidden = !isClaude && u.turns === 0;
+    if (card.hidden) return;
+    const body = $('#dash-claude');
+    const cached = u.input + u.cacheRead + u.cacheWrite;
+    const hitRate = cached ? Math.round((u.cacheRead / cached) * 100) : 0;
+    const designModel = state.model || (state.providers.find((p) => p.id === 'anthropic') || {}).defaultModel || 'claude-opus-5';
+    body.innerHTML = `
+      ${claude ? `
+      <div class="tier-row">
+        <div class="tier"><span class="tier-role">Designer</span><strong>${escapeHtml(designModel)}</strong><em>new surfaces · effort ${escapeHtml(claude.effort)}</em></div>
+        <span class="tier-arrow">${iconSvg('arrowForward')}</span>
+        <div class="tier"><span class="tier-role">Builder</span><strong>${escapeHtml(claude.actionModel || designModel)}</strong><em>actions &amp; repairs · effort ${escapeHtml(claude.actionModel ? claude.actionEffort : claude.effort)}</em></div>
+      </div>
+      <div class="tier-flags">
+        <span class="tier-flag ${claude.showThinking ? 'on' : ''}">${iconSvg(claude.showThinking ? 'check' : 'close')} reasoning stream</span>
+        <span class="tier-flag ${claude.refusalFallback ? 'on' : ''}">${iconSvg(claude.refusalFallback ? 'check' : 'close')} refusal fallback</span>
+        <span class="tier-flag on">${iconSvg('check')} prompt cache</span>
+        <span class="tier-flag on">${iconSvg('check')} adaptive thinking</span>
+      </div>` : ''}
+      ${u.turns ? `
+      <div class="pi-row"><span class="pi-label">Turns</span><span class="pi-value">${u.turns}${u.lastModel ? ` · last ${escapeHtml(u.lastModel)}` : ''}</span></div>
+      <div class="pi-row"><span class="pi-label">Input · output</span><span class="pi-value">${fmtTokens(u.input + u.cacheRead + u.cacheWrite)} · ${fmtTokens(u.output)}</span></div>
+      <div class="pi-row"><span class="pi-label">Cache hit rate</span><span class="pi-value">${hitRate}% <span class="muted">(${fmtTokens(u.cacheRead)} read · ${fmtTokens(u.cacheWrite)} written)</span></span></div>
+      <div class="pi-row"><span class="pi-label">Estimated cost</span><span class="pi-value">${fmtCost(u.cost)}</span></div>`
+      : '<div class="pi-note">Token usage, cache hit rate and estimated cost appear here after the first Claude turn.</div>'}
+      <div class="pi-actions"><button class="ghost-btn tiny" id="claude-settings">Tune agent</button></div>`;
+    body.querySelector('#claude-settings').addEventListener('click', () => setView('settings'));
+  }
+
   function updateDashboard() {
     if (MODE === 'editor') return;
     const invalid = state.streamEntries.filter((e) => !e.ok).length;
@@ -2320,6 +2471,12 @@
     const badge = $('#nav-badge');
     badge.hidden = surfaces.size === 0;
     badge.textContent = String(surfaces.size);
+
+    const u = state.usage;
+    const totalTokens = u.input + u.output + u.cacheRead + u.cacheWrite;
+    $('#stat-tokens-card').hidden = u.turns === 0;
+    $('#stat-tokens').textContent = fmtTokens(totalTokens);
+    $('#stat-cost').textContent = fmtCost(u.cost);
 
     const kinds = ['createSurface', 'updateComponents', 'updateDataModel', 'deleteSurface'];
     const counts = {};
@@ -2342,14 +2499,20 @@
 
     const eff = state.effective;
     const info = state.providers.find((p) => p.id === state.provider);
-    const needsKey = ['anthropic', 'openai', 'gemini'].includes(state.provider);
+    const needsKey = ['anthropic', 'zai', 'openai', 'gemini'].includes(state.provider);
     const hasKey = !!state.keys[state.provider];
     $('#dash-provider').innerHTML = `
       ${eff && eff.activeProfile ? `<div class="pi-row"><span class="pi-label">Profile</span><span class="pi-value pi-badge">${escapeHtml(eff.activeProfile)}</span></div>` : ''}
       <div class="pi-row"><span class="pi-label">Provider</span><span class="pi-value">${escapeHtml(info ? info.label : state.provider)}</span></div>
       <div class="pi-row"><span class="pi-label">Model</span><span class="pi-value">${escapeHtml(state.model || (info && info.defaultModel) || 'auto')}</span></div>
       ${eff && eff.baseUrl ? `<div class="pi-row"><span class="pi-label">Gateway</span><span class="pi-value">${escapeHtml(eff.baseUrl)}</span></div>` : ''}
-      <div class="pi-row"><span class="pi-label">Temperature</span><span class="pi-value">${eff ? eff.temperature : '—'}</span></div>
+      ${state.provider === 'zai'
+        ? `<div class="pi-row"><span class="pi-label">Plan</span><span class="pi-value">${escapeHtml(eff && eff.zai ? eff.zai.plan : 'coding')}</span></div>
+           <div class="pi-row"><span class="pi-label">Reasoning</span><span class="pi-value">${escapeHtml(eff && eff.zai ? eff.zai.reasoningEffort : 'high')}</span></div>`
+        : state.provider === 'anthropic'
+        ? `<div class="pi-row"><span class="pi-label">Effort</span><span class="pi-value">${escapeHtml(eff && eff.claude ? eff.claude.effort : 'high')}</span></div>
+           <div class="pi-row"><span class="pi-label">Action model</span><span class="pi-value">${escapeHtml(eff && eff.claude && eff.claude.actionModel ? `${eff.claude.actionModel} · ${eff.claude.actionEffort}` : 'same model')}</span></div>`
+        : `<div class="pi-row"><span class="pi-label">Temperature</span><span class="pi-value">${eff ? eff.temperature : '—'}</span></div>`}
       <div class="pi-row"><span class="pi-label">Models found</span><span class="pi-value">${state.modelsLoading ? '…' : state.models.length}</span></div>
       ${eff && eff.catalog ? `<div class="pi-row"><span class="pi-label">Catalog</span><span class="pi-value">${eff.catalog.componentNames.length} custom components</span></div>` : ''}
       ${needsKey && !hasKey ? `<div class="pi-note">No API key stored for this provider yet.</div>` : ''}
@@ -2367,6 +2530,8 @@
       vscode.postMessage({ type: 'listModels', provider: state.provider });
     });
     $('#pi-settings').addEventListener('click', () => setView('settings'));
+
+    renderClaudeCard();
 
     const feed = $('#dash-activity');
     const recent = state.activity.slice(-9).reverse();
@@ -2864,6 +3029,7 @@
         state.keys = msg.keys || {};
         state.savedPrompts = msg.savedPrompts || [];
         state.providers = msg.providers || [];
+        state.claudeModels = msg.claudeModels || [];
         const prevProvider = state.provider;
         state.provider = msg.effective.provider;
         state.model = msg.effective.model || '';
@@ -2924,12 +3090,38 @@
         state.rawText += msg.text;
         if (state.showRaw) renderStreamTab();
         break;
+      case 'thinking':
+        state.thinking += msg.text || '';
+        if (state.generating) scheduleChatRender();
+        break;
+      case 'usage': {
+        const u = state.usage;
+        u.turns++;
+        u.input += msg.input || 0;
+        u.output += msg.output || 0;
+        u.cacheRead += msg.cacheRead || 0;
+        u.cacheWrite += msg.cacheWrite || 0;
+        if (typeof msg.cost === 'number') u.cost += msg.cost;
+        u.lastModel = msg.model || '';
+        u.lastKind = msg.kind || '';
+        updateDashboard();
+        break;
+      }
+      case 'notice':
+        pushChat('event', msg.text || '');
+        logActivity('info', msg.text || '', '');
+        break;
       case 'status':
         setStatus(msg.state, msg.text);
         if (msg.state !== 'generating' && state.turnPending) {
           state.turnPending = false;
-          const entry = { envelopes: state.turnEnvelopes, invalid: state.turnInvalid };
+          const entry = { envelopes: state.turnEnvelopes, invalid: state.turnInvalid, model: state.usage.lastKind ? state.usage.lastModel : '' };
           pushChat('agent', msg.text || 'Done.', entry);
+          if (state.thinking) {
+            state.chat[state.chat.length - 1].thinking = state.thinking;
+            state.thinking = '';
+            renderChat();
+          }
           if (msg.state === 'error') {
             state.chat[state.chat.length - 1].error = true;
             logActivity('error', msg.text || 'Generation failed', 'act-warn');

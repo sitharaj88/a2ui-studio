@@ -1,8 +1,8 @@
 {
   "name": "a2ui-studio",
   "displayName": "A2UI Studio",
-  "description": "Experiment with the A2UI protocol (a2ui.org) \u2014 generate live, agent-driven UIs with GitHub Copilot, Claude, OpenAI, Gemini, or Ollama, rendered right inside VS Code.",
-  "version": "1.0.0",
+  "description": "Experiment with the A2UI protocol (a2ui.org) — generate live, agent-driven UIs with Claude Opus 5 & Sonnet 5, GLM (Z.ai Coding Plan), GitHub Copilot, OpenAI, Gemini, or Ollama, rendered right inside VS Code.",
+  "version": "1.1.0",
   "publisher": "sitharaj",
   "license": "Apache-2.0",
   "repository": {
@@ -20,6 +20,10 @@
   ],
   "keywords": [
     "a2ui",
+    "claude",
+    "anthropic",
+    "glm",
+    "zhipu",
     "agent",
     "generative ui",
     "copilot",
@@ -91,7 +95,7 @@
       {
         "id": "a2ui.gettingStarted",
         "title": "Get started with A2UI Studio",
-        "description": "Generate live, agent-driven UIs from plain language \u2014 with any AI provider.",
+        "description": "Generate live, agent-driven UIs from plain language — with any AI provider.",
         "steps": [
           {
             "id": "a2ui.step.open",
@@ -107,7 +111,7 @@
           {
             "id": "a2ui.step.demo",
             "title": "Play an instant demo",
-            "description": "Prerecorded A2UI streams \u2014 including a three-page Analytics app \u2014 render with zero AI setup, so you feel the protocol in seconds from the Gallery view.",
+            "description": "Prerecorded A2UI streams — including a three-page Analytics app — render with zero AI setup, so you feel the protocol in seconds from the Gallery view.",
             "media": {
               "markdown": "media/walkthrough/demo.md"
             }
@@ -158,7 +162,7 @@
     "viewsWelcome": [
       {
         "view": "a2ui.home",
-        "contents": "**A2UI Studio** \u2014 experiment with agent-driven interfaces.\n\nDescribe any UI in plain language and watch an AI agent stream a live, interactive A2UI surface.\n\n[$(sparkle) Open Playground](command:a2ui.openPlayground)\n\nPreview an A2UI JSONL stream from a file:\n[$(open-preview) Preview Current File](command:a2ui.previewFile)\n\nLearn more at [a2ui.org](https://a2ui.org)."
+        "contents": "**A2UI Studio** — experiment with agent-driven interfaces.\n\nDescribe any UI in plain language and watch an AI agent stream a live, interactive A2UI surface.\n\n[$(sparkle) Open Playground](command:a2ui.openPlayground)\n\nPreview an A2UI JSONL stream from a file:\n[$(open-preview) Preview Current File](command:a2ui.previewFile)\n\nLearn more at [a2ui.org](https://a2ui.org)."
       }
     ],
     "menus": {
@@ -193,6 +197,7 @@
           "enum": [
             "copilot",
             "anthropic",
+            "zai",
             "openai",
             "gemini",
             "ollama",
@@ -201,6 +206,7 @@
           "enumDescriptions": [
             "GitHub Copilot via the VS Code Language Model API (no API key needed)",
             "Anthropic Claude (API key required)",
+            "Z.ai GLM via the GLM Coding Plan (API key required)",
             "OpenAI (API key required)",
             "Google Gemini (API key required)",
             "Ollama running locally (no API key needed)",
@@ -212,18 +218,18 @@
         "a2ui.model": {
           "type": "string",
           "default": "",
-          "description": "Model ID override. Leave empty for the provider default (Copilot: best available chat model, Anthropic: claude-sonnet-5, OpenAI: gpt-4o, Gemini: gemini-2.0-flash, Ollama: llama3.2)."
+          "description": "Model ID override. Leave empty for the provider default (Copilot: best available chat model, Anthropic: claude-opus-5, Z.ai: glm-5.3, OpenAI: gpt-4o, Gemini: gemini-2.0-flash, Ollama: llama3.2)."
         },
         "a2ui.temperature": {
           "type": "number",
           "default": 0.7,
           "minimum": 0,
           "maximum": 2,
-          "description": "Sampling temperature for generation. Profiles in a2ui.config.json can override this."
+          "description": "Sampling temperature for generation. Ignored by Claude 5-generation models, which reject sampling parameters. Profiles in a2ui.config.json can override this."
         },
         "a2ui.maxTokens": {
           "type": "number",
-          "default": 8192,
+          "default": 16000,
           "minimum": 256,
           "maximum": 128000,
           "description": "Maximum output tokens per turn. Profiles in a2ui.config.json can override this."
@@ -242,11 +248,15 @@
         "a2ui.baseUrls": {
           "type": "object",
           "default": {},
-          "markdownDescription": "Custom API base URLs per provider \u2014 for enterprise gateways/proxies (AWS Bedrock proxies, LiteLLM, etc.). The studio also fetches the live model list from these URLs (`{baseUrl}/v1/models`), so nothing is hardcoded. API keys become optional when a gateway is set (the gateway does its own auth). Profiles in `a2ui.config.json` can override per profile.",
+          "markdownDescription": "Custom API base URLs per provider — for enterprise gateways/proxies (AWS Bedrock proxies, LiteLLM, etc.). The studio also fetches the live model list from these URLs (`{baseUrl}/v1/models`), so nothing is hardcoded. API keys become optional when a gateway is set (the gateway does its own auth). Profiles in `a2ui.config.json` can override per profile.",
           "properties": {
             "anthropic": {
               "type": "string",
               "description": "Anthropic-compatible gateway base URL (replaces https://api.anthropic.com)."
+            },
+            "zai": {
+              "type": "string",
+              "description": "Z.ai-compatible base URL override (replaces the Coding Plan / general endpoint chosen by a2ui.zai.plan)."
             },
             "openai": {
               "type": "string",
@@ -268,6 +278,49 @@
           "type": "boolean",
           "default": true,
           "description": "When the model emits invalid A2UI messages, automatically send one corrective follow-up turn asking it to fix them."
+        },
+        "a2ui.claude.effort": {
+          "type": "string",
+          "enum": ["low", "medium", "high", "xhigh", "max"],
+          "default": "high",
+          "markdownDescription": "Reasoning effort for **design turns** (new surfaces) on Claude. `high` balances quality and speed; `xhigh` for the most elaborate multi-page apps; `low`/`medium` for quick drafts."
+        },
+        "a2ui.claude.actionModel": {
+          "type": "string",
+          "default": "claude-sonnet-5",
+          "markdownDescription": "Claude model for **action round-trips and repair turns** — the \"builder\" half of the designer/builder split. Leave empty to reuse the design model."
+        },
+        "a2ui.claude.actionEffort": {
+          "type": "string",
+          "enum": ["low", "medium", "high", "xhigh", "max"],
+          "default": "medium",
+          "description": "Reasoning effort for action round-trips and repair turns on Claude."
+        },
+        "a2ui.claude.showThinking": {
+          "type": "boolean",
+          "default": true,
+          "description": "Stream Claude's summarized reasoning into the agent chat while it designs."
+        },
+        "a2ui.zai.plan": {
+          "type": "string",
+          "enum": ["coding", "general"],
+          "enumDescriptions": [
+            "GLM Coding Plan key — https://api.z.ai/api/coding/paas/v4",
+            "General Z.ai API key (pay-as-you-go) — https://api.z.ai/api/paas/v4"
+          ],
+          "default": "coding",
+          "markdownDescription": "Which Z.ai endpoint the GLM provider calls. A **Coding Plan** key only works with the coding endpoint and a general API key only with the general one."
+        },
+        "a2ui.zai.reasoningEffort": {
+          "type": "string",
+          "enum": ["low", "high", "max"],
+          "default": "high",
+          "description": "GLM thinking depth (thinking is always on for GLM-5.x). `high` balances quality and speed; `max` is deepest and slowest."
+        },
+        "a2ui.claude.refusalFallback": {
+          "type": "boolean",
+          "default": true,
+          "markdownDescription": "When Claude Opus 5's safety classifiers decline a request, let the API re-run it on Anthropic's recommended fallback model in the same call (beta `server-side-fallback`). Disable for gateways that reject beta headers."
         }
       }
     }
@@ -275,6 +328,7 @@
   "scripts": {
     "build": "node esbuild.js",
     "watch": "node esbuild.js --watch",
+    "dev": "node esbuild.js && code --extensionDevelopmentPath=\"$PWD\" --new-window",
     "test": "node test/run-tests.js",
     "package": "node esbuild.js --production && vsce package --no-dependencies"
   },
@@ -292,5 +346,8 @@
   "galleryBanner": {
     "color": "#1e1e2e",
     "theme": "dark"
+  },
+  "dependencies": {
+    "@anthropic-ai/sdk": "^0.123.0"
   }
 }

@@ -2304,3 +2304,67 @@ body.no-motion *, body.no-motion *::before, body.no-motion *::after {
 
 /* Live-preview editor panes are often narrow */
 .mode-editor .canvas { padding: 12px 12px 20px; }
+
+/* ==========================================================================
+   Claude 5 agent — reasoning stream, usage card, tier row
+   ========================================================================== */
+.chat-think {
+  border: 1px solid color-mix(in srgb, var(--accent-b) 35%, var(--border));
+  border-radius: 10px;
+  background: color-mix(in srgb, var(--accent-b) 6%, transparent);
+  font-size: 11.5px;
+  overflow: hidden;
+}
+.chat-think summary {
+  display: flex; align-items: center; gap: 7px;
+  padding: 6px 10px; cursor: pointer; list-style: none;
+  font-weight: 650; color: color-mix(in srgb, var(--accent-b) 80%, var(--fg));
+}
+.chat-think summary::-webkit-details-marker { display: none; }
+.chat-think summary em { margin-left: auto; font-style: normal; font-weight: 500; font-size: 10.5px; color: var(--muted); }
+.chat-think-icon { width: 12px; height: 12px; flex: none; }
+.chat-think-body {
+  padding: 4px 10px 10px; white-space: pre-wrap; line-height: 1.55;
+  color: var(--muted); max-height: 260px; overflow-y: auto;
+  border-top: 1px dashed color-mix(in srgb, var(--accent-b) 30%, var(--border));
+}
+.chat-think-live {
+  flex-direction: column; align-items: stretch; gap: 6px; padding: 9px 12px;
+  border-color: color-mix(in srgb, var(--accent-b) 40%, var(--border));
+  background: color-mix(in srgb, var(--accent-b) 5%, var(--card-bg));
+  max-width: 92%;
+}
+.chat-think-head { display: flex; align-items: center; gap: 6px; font-size: 10.5px; font-weight: 700; letter-spacing: 0.3px; text-transform: uppercase; color: color-mix(in srgb, var(--accent-b) 80%, var(--fg)); }
+.chat-think-head .tdot { width: 4px; height: 4px; }
+.chat-think-head .tdot:first-of-type { margin-left: 4px; }
+.chat-think-stream {
+  font-size: 11.5px; line-height: 1.5; color: var(--muted); white-space: pre-wrap;
+  max-height: 120px; overflow: hidden;
+  mask-image: linear-gradient(to bottom, transparent, #000 28%);
+  display: flex; flex-direction: column; justify-content: flex-end;
+}
+
+.tier-row { display: grid; grid-template-columns: 1fr auto 1fr; align-items: center; gap: 10px; margin-bottom: 10px; }
+.tier {
+  display: flex; flex-direction: column; gap: 2px; min-width: 0;
+  border: 1px solid var(--border); border-radius: 11px; padding: 10px 12px;
+  background: color-mix(in srgb, var(--accent-a) 5%, transparent);
+}
+.tier:last-child { background: color-mix(in srgb, var(--accent-c) 6%, transparent); }
+.tier-role { font-size: 9.5px; font-weight: 750; letter-spacing: 0.6px; text-transform: uppercase; color: var(--accent-a); }
+.tier:last-child .tier-role { color: var(--accent-c); }
+.tier strong { font-family: var(--mono); font-size: 11.5px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.tier em { font-style: normal; font-size: 10.5px; color: var(--muted); }
+.tier-arrow { color: var(--muted); display: grid; place-items: center; }
+.tier-arrow svg { width: 14px; height: 14px; }
+.tier-flags { display: flex; flex-wrap: wrap; gap: 6px; margin-bottom: 8px; }
+.tier-flag {
+  display: inline-flex; align-items: center; gap: 4px;
+  font-size: 10.5px; padding: 3px 9px; border-radius: 99px;
+  border: 1px solid var(--border); color: var(--muted);
+}
+.tier-flag svg { width: 10px; height: 10px; }
+.tier-flag.on { color: var(--accent-c); border-color: color-mix(in srgb, var(--accent-c) 45%, var(--border)); background: color-mix(in srgb, var(--accent-c) 8%, transparent); }
+.set-select { cursor: pointer; }
+.set-banner.set-soft { border-color: color-mix(in srgb, var(--accent-b) 35%, var(--border)); background: color-mix(in srgb, var(--accent-b) 6%, transparent); }
+@media (max-width: 760px) { .tier-row { grid-template-columns: 1fr; } .tier-arrow { transform: rotate(90deg); } }

@@ -1,7 +1,7 @@
 /**
  * A2UI v0.9.1 stream utilities: incremental JSON object extraction from
- * arbitrary LLM output, plus lightweight envelope validation against the
- * basic catalog.
+ * arbitrary LLM output, envelope validation against the basic catalog, and a
+ * cross-message surface linter for the repair loop.
  */
 
 export interface A2uiEnvelope {
@@ -171,6 +171,7 @@ export function validateEnvelope(obj: unknown, opts: ValidateOptions = {}): Vali
     if (!Array.isArray(body.components)) {
       errors.push('updateComponents.components must be an array');
     } else {
+      const ids = new Set<string>();
       for (const comp of body.components) {
         if (typeof comp !== 'object' || comp === null) {
           errors.push('Component entry is not an object');
@@ -178,6 +179,10 @@ export function validateEnvelope(obj: unknown, opts: ValidateOptions = {}): Vali
         }
         if (typeof comp.id !== 'string' || !comp.id) {
           errors.push(`Component missing string id: ${JSON.stringify(comp).slice(0, 80)}`);
+        } else if (ids.has(comp.id)) {
+          errors.push(`Duplicate component id "${comp.id}" in the same updateComponents message`);
+        } else {
+          ids.add(comp.id);
         }
         if (typeof comp.component !== 'string') {
           errors.push(`Component "${comp.id}" missing component type`);
@@ -188,8 +193,100 @@ export function validateEnvelope(obj: unknown, opts: ValidateOptions = {}): Vali
         ) {
           errors.push(`Component "${comp.id}" uses unknown type "${comp.component}" (not in the basic or studio catalog)`);
         }
+        if (comp.component === 'Card' && comp.children !== undefined && comp.child === undefined) {
+          errors.push(`Card "${comp.id}" must use a single "child" id — wrap multiple items in a Column or Row`);
+        }
+        if (comp.component === 'Button' && typeof comp.child !== 'string') {
+          errors.push(`Button "${comp.id}" needs a "child" id pointing at a Text or Icon component`);
+        }
       }
     }
   }
   return { ok: errors.length === 0, errors };
+}
+
+/** Component ids referenced by a component's structural properties. */
+export function childReferences(comp: Record<string, any>): string[] {
+  const refs: string[] = [];
+  const push = (v: unknown) => {
+    if (typeof v === 'string' && v) refs.push(v);
+  };
+  if (Array.isArray(comp.children)) comp.children.forEach(push);
+  else if (comp.children && typeof comp.children === 'object') push(comp.children.componentId);
+  push(comp.child);
+  if (comp.component === 'Modal') {
+    push(comp.trigger);
+    push(comp.content);
+  }
+  for (const key of ['tabs', 'pages', 'steps', 'items']) {
+    const list = comp[key];
+    if (Array.isArray(list)) for (const entry of list) if (entry && typeof entry === 'object') push(entry.child);
+  }
+  return refs;
+}
+
+interface TrackedSurface {
+  components: Map<string, Record<string, any>>;
+  touched: boolean;
+}
+
+/**
+ * Follows the surfaces a conversation builds up so structural problems that
+ * span messages — dangling child ids, a missing root, updates to a surface
+ * that was never created — can be fed back to the model for repair.
+ */
+export class SurfaceTracker {
+  private surfaces = new Map<string, TrackedSurface>();
+  private orphanUpdates = new Set<string>();
+
+  apply(envelope: unknown): void {
+    const env = envelope as A2uiEnvelope;
+    if (env.createSurface?.surfaceId) {
+      this.surfaces.set(env.createSurface.surfaceId, { components: new Map(), touched: true });
+    } else if (env.updateComponents?.surfaceId) {
+      const id = env.updateComponents.surfaceId;
+      let s = this.surfaces.get(id);
+      if (!s) {
+        this.orphanUpdates.add(id);
+        s = { components: new Map(), touched: true };
+        this.surfaces.set(id, s);
+      }
+      s.touched = true;
+      for (const comp of env.updateComponents.components ?? []) {
+        if (comp && typeof comp.id === 'string') s.components.set(comp.id, comp);
+      }
+    } else if (env.deleteSurface?.surfaceId) {
+      this.surfaces.delete(env.deleteSurface.surfaceId);
+      this.orphanUpdates.delete(env.deleteSurface.surfaceId);
+    }
+  }
+
+  /** Structural errors for surfaces touched since the last lint. */
+  lint(): string[] {
+    const errors: string[] = [];
+    for (const [id, s] of this.surfaces) {
+      if (!s.touched) continue;
+      s.touched = false;
+      if (this.orphanUpdates.has(id)) {
+        errors.push(`Surface "${id}" received updateComponents without a preceding createSurface`);
+        this.orphanUpdates.delete(id);
+      }
+      if (s.components.size > 0 && !s.components.has('root')) {
+        errors.push(`Surface "${id}" has no component with id "root"`);
+      }
+      for (const [cid, comp] of s.components) {
+        for (const ref of childReferences(comp)) {
+          if (!s.components.has(ref)) {
+            errors.push(`Component "${cid}" in surface "${id}" references undefined child "${ref}"`);
+          }
+        }
+      }
+    }
+    return errors;
+  }
+
+  reset(): void {
+    this.surfaces.clear();
+    this.orphanUpdates.clear();
+  }
 }

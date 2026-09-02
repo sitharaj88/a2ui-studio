@@ -1,6 +1,8 @@
 import * as vscode from 'vscode';
-import { JsonStreamExtractor, validateEnvelope } from './a2ui';
-import { ConfigService } from './config';
+import { JsonStreamExtractor, SurfaceTracker, validateEnvelope } from './a2ui';
+import { ClaudeUsage } from './claude';
+import { ClaudeEffort, CLAUDE_MODELS, estimateClaudeCost } from './claudeRequest';
+import { ConfigService, EffectiveConfig } from './config';
 import {
   ChatMessage,
   DEFAULT_MODELS,
@@ -30,8 +32,45 @@ const WRITABLE_SETTINGS = new Set([
   'systemPromptAppend',
   'ollamaUrl',
   'a2aEndpoint',
-  'baseUrls'
+  'baseUrls',
+  'claude.effort',
+  'claude.actionModel',
+  'claude.actionEffort',
+  'claude.showThinking',
+  'claude.refusalFallback',
+  'zai.plan',
+  'zai.reasoningEffort'
 ]);
+
+/** What a turn is for — drives model/effort routing on Claude. */
+type TurnKind = 'design' | 'action' | 'repair';
+
+interface TurnRoute {
+  model: string;
+  effort: ClaudeEffort;
+  /** Short label shown in status lines, e.g. "designer · claude-opus-5". */
+  label: string;
+}
+
+/**
+ * Picks the model and effort for a turn. On Claude, design turns go to the
+ * configured (Opus-class) model at full effort while action round-trips and
+ * repairs go to the faster action model — the "designer / builder" split.
+ */
+export function routeTurn(eff: EffectiveConfig, kind: TurnKind): TurnRoute {
+  const designModel = eff.model || DEFAULT_MODELS[eff.provider];
+  if (eff.provider !== 'anthropic') {
+    return { model: eff.model, effort: eff.claude.effort, label: designModel || 'auto' };
+  }
+  if (kind === 'design' || !eff.claude.actionModel) {
+    return { model: designModel, effort: eff.claude.effort, label: `designer · ${designModel}` };
+  }
+  return {
+    model: eff.claude.actionModel,
+    effort: eff.claude.actionEffort,
+    label: `builder · ${eff.claude.actionModel}`
+  };
+}
 
 export class PlaygroundPanel {
   public static current: PlaygroundPanel | undefined;
@@ -40,6 +79,7 @@ export class PlaygroundPanel {
   private readonly context: vscode.ExtensionContext;
   private readonly configService: ConfigService;
   private history: ChatMessage[] = [];
+  private readonly tracker = new SurfaceTracker();
   private cancelSource: vscode.CancellationTokenSource | undefined;
   private disposables: vscode.Disposable[] = [];
 
@@ -86,6 +126,7 @@ export class PlaygroundPanel {
   /** Pipe a pre-recorded A2UI JSONL stream (from a file) into the renderer. */
   previewStream(text: string, sourceName: string): void {
     this.post({ type: 'resetSurfaces' });
+    this.tracker.reset();
     this.post({ type: 'note', text: `Previewing ${sourceName}` });
     const extractor = new JsonStreamExtractor();
     const objects = [...extractor.push(text), ...extractor.finish()];
@@ -95,6 +136,7 @@ export class PlaygroundPanel {
       const result = validateEnvelope(obj, { allowUnknownComponents: allowUnknown });
       if (result.ok) {
         valid++;
+        this.tracker.apply(obj);
         this.post({ type: 'a2ui', envelope: obj });
       } else {
         this.post({ type: 'invalid', envelope: obj, errors: result.errors });
@@ -116,16 +158,17 @@ export class PlaygroundPanel {
         const provider = (msg.provider as ProviderId) || this.configService.effective().provider;
         const result = await listModels(provider, this.context.secrets, {
           baseUrl: this.configService.baseUrlFor(provider),
-          ollamaUrl: this.configService.effective().ollamaUrl
+          ollamaUrl: this.configService.effective().ollamaUrl,
+          zaiPlan: this.configService.effective().zai.plan
         });
         this.post({ type: 'models', provider, models: result.models, note: result.note });
         break;
       }
       case 'prompt':
-        await this.runTurn(userRequestPrompt(String(msg.text ?? '')));
+        await this.runTurn(userRequestPrompt(String(msg.text ?? '')), 'design');
         break;
       case 'action':
-        await this.runTurn(actionPrompt(msg.payload));
+        await this.runTurn(actionPrompt(msg.payload), 'action');
         break;
       case 'stop':
         this.cancelSource?.cancel();
@@ -133,6 +176,7 @@ export class PlaygroundPanel {
         break;
       case 'clear':
         this.history = [];
+        this.tracker.reset();
         this.post({ type: 'resetSurfaces' });
         this.post({ type: 'status', state: 'idle', text: 'Session cleared' });
         break;
@@ -288,8 +332,14 @@ ${html}
         maxTokens: eff.maxTokens,
         baseUrl: this.configService.baseUrlFor(provider),
         ollamaUrl: eff.ollamaUrl,
+        effort: eff.claude.effort,
+        showThinking: false,
+        refusalFallback: eff.claude.refusalFallback,
+        zaiPlan: eff.zai.plan,
+        reasoningEffort: eff.zai.reasoningEffort,
         onModel: (modelLabel) =>
           this.post({ type: 'arenaStatus', side, state: 'generating', text: `${PROVIDER_LABELS[provider]} · ${modelLabel}` }),
+        onUsage: (usage) => this.postUsage(usage, `arena ${side.toUpperCase()}`),
         messages: [
           { role: 'system', content: buildSystemPrompt(eff.systemPromptAppend, eff.catalog) },
           { role: 'user', content: userRequestPrompt(prompt) }
@@ -337,9 +387,10 @@ ${html}
   private async sendConfig(): Promise<void> {
     const eff = this.configService.effective();
     const keys: Record<string, boolean> = {};
-    for (const p of ['anthropic', 'openai', 'gemini'] as ProviderId[]) {
+    for (const p of ['anthropic', 'zai', 'openai', 'gemini'] as ProviderId[]) {
       keys[p] = !!(await this.context.secrets.get(secretKeyFor(p)));
     }
+    if (!keys.anthropic && process.env.ANTHROPIC_API_KEY) keys.anthropic = true;
     const cfg = vscode.workspace.getConfiguration('a2ui');
     this.post({
       type: 'config',
@@ -354,13 +405,16 @@ ${html}
         provider: cfg.get('provider', 'copilot'),
         model: cfg.get('model', ''),
         temperature: cfg.get('temperature', 0.7),
-        maxTokens: cfg.get('maxTokens', 8192),
+        maxTokens: cfg.get('maxTokens', 16000),
         autoRepair: cfg.get('autoRepair', true),
         systemPromptAppend: cfg.get('systemPromptAppend', ''),
         ollamaUrl: cfg.get('ollamaUrl', 'http://localhost:11434'),
         a2aEndpoint: cfg.get('a2aEndpoint', ''),
-        baseUrls: cfg.get('baseUrls', {})
+        baseUrls: cfg.get('baseUrls', {}),
+        claude: this.configService.claudeSettings(),
+        zai: this.configService.glmSettings()
       },
+      claudeModels: CLAUDE_MODELS,
       providers: Object.entries(PROVIDER_LABELS).map(([id, label]) => ({
         id,
         label,
@@ -369,8 +423,12 @@ ${html}
     });
   }
 
+  private postUsage(usage: ClaudeUsage, kind: string): void {
+    this.post({ type: 'usage', kind, ...usage, cost: estimateClaudeCost(usage.model, usage) });
+  }
+
   /** Runs one generate turn (plus at most one auto-repair turn). */
-  private async runTurn(userContent: string): Promise<void> {
+  private async runTurn(userContent: string, kind: TurnKind): Promise<void> {
     if (this.cancelSource) {
       this.cancelSource.cancel();
     }
@@ -380,13 +438,14 @@ ${html}
     }
     this.history.push({ role: 'user', content: userContent });
 
-    const errors = await this.streamOnce();
+    const errors = await this.streamOnce(kind);
     if (errors === undefined) return; // cancelled or failed
 
     if (errors.length > 0 && eff.autoRepair) {
       this.post({ type: 'status', state: 'generating', text: 'Auto-repairing invalid messages…' });
+      this.post({ type: 'notice', text: `Repairing ${errors.length} issue${errors.length === 1 ? '' : 's'}: ${errors[0]}` });
       this.history.push({ role: 'user', content: repairPrompt(errors) });
-      await this.streamOnce();
+      await this.streamOnce('repair');
     }
   }
 
@@ -394,8 +453,9 @@ ${html}
    * Streams one model response, forwarding valid envelopes to the webview.
    * Returns the list of validation errors, or undefined on cancel/failure.
    */
-  private async streamOnce(): Promise<string[] | undefined> {
+  private async streamOnce(kind: TurnKind): Promise<string[] | undefined> {
     const eff = this.configService.effective();
+    const route = routeTurn(eff, kind);
     this.cancelSource = new vscode.CancellationTokenSource();
     const token = this.cancelSource.token;
     const extractor = new JsonStreamExtractor();
@@ -409,6 +469,7 @@ ${html}
         const result = validateEnvelope(obj, { allowUnknownComponents: allowUnknown });
         if (result.ok) {
           envelopeCount++;
+          this.tracker.apply(obj);
           this.post({ type: 'a2ui', envelope: obj });
         } else {
           errors.push(...result.errors);
@@ -425,18 +486,35 @@ ${html}
     try {
       await generate({
         provider: eff.provider,
-        model: eff.model,
+        model: route.model,
         temperature: eff.temperature,
         maxTokens: eff.maxTokens,
         baseUrl: eff.baseUrl,
         ollamaUrl: eff.ollamaUrl,
+        effort: route.effort,
+        showThinking: eff.claude.showThinking,
+        refusalFallback: eff.claude.refusalFallback,
+        zaiPlan: eff.zai.plan,
+        reasoningEffort: eff.zai.reasoningEffort,
         messages: this.history,
         secrets: this.context.secrets,
         token,
         // Surface the model actually in use — a wrong-model bill should be
         // impossible to miss.
         onModel: (modelLabel) =>
-          this.post({ type: 'status', state: 'generating', text: `Generating with ${label} · ${modelLabel}…` }),
+          this.post({
+            type: 'status',
+            state: 'generating',
+            text:
+              eff.provider === 'anthropic'
+                ? `Generating with ${label} · ${route.label} · effort ${route.effort}…`
+                : eff.provider === 'zai'
+                  ? `Generating with ${label} · ${modelLabel} · ${eff.zai.plan} plan · reasoning ${eff.zai.reasoningEffort}…`
+                  : `Generating with ${label} · ${modelLabel}…`
+          }),
+        onThinking: (chunk) => this.post({ type: 'thinking', text: chunk }),
+        onUsage: (usage) => this.postUsage(usage, kind),
+        onNote: (text) => this.post({ type: 'notice', text }),
         onText: (chunk) => {
           assistantText += chunk;
           this.post({ type: 'raw', text: chunk });
@@ -461,12 +539,14 @@ ${html}
       this.post({ type: 'status', state: 'idle', text: 'Stopped' });
       return undefined;
     }
+    // Structural problems only visible across messages (dangling ids, no root).
+    errors.push(...this.tracker.lint());
     this.post({
       type: 'status',
       state: 'idle',
       text:
         envelopeCount > 0
-          ? `Done — ${envelopeCount} A2UI message${envelopeCount === 1 ? '' : 's'}${errors.length ? `, ${errors.length} invalid` : ''}`
+          ? `Done — ${envelopeCount} A2UI message${envelopeCount === 1 ? '' : 's'}${errors.length ? `, ${errors.length} issue${errors.length === 1 ? '' : 's'}` : ''}`
           : 'The model returned no A2UI messages. Try a different prompt or provider.'
     });
     return errors;

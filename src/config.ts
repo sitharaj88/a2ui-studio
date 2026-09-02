@@ -1,4 +1,6 @@
 import * as vscode from 'vscode';
+import { ClaudeOptions, DEFAULT_CLAUDE_OPTIONS, isClaudeEffort } from './claudeRequest';
+import { DEFAULT_GLM_OPTIONS, GlmOptions, isGlmPlan, isGlmReasoningEffort } from './glm';
 import { ProviderId } from './providers';
 
 export interface ProfileConfig {
@@ -9,6 +11,18 @@ export interface ProfileConfig {
   baseUrl?: string;
   temperature?: number;
   maxTokens?: number;
+  /** Claude: reasoning effort for design turns. */
+  effort?: ClaudeOptions['effort'];
+  /** Claude: model for action round-trips and repairs ('' = same model). */
+  actionModel?: string;
+  /** Claude: reasoning effort for action round-trips and repairs. */
+  actionEffort?: ClaudeOptions['effort'];
+  /** Claude: stream summarized reasoning into the chat. */
+  showThinking?: boolean;
+  /** Z.ai: coding-plan or general endpoint. */
+  plan?: GlmOptions['plan'];
+  /** Z.ai: GLM reasoning effort. */
+  reasoningEffort?: GlmOptions['reasoningEffort'];
 }
 
 export interface FileConfig {
@@ -38,6 +52,10 @@ export interface EffectiveConfig {
   autoRepair: boolean;
   systemPromptAppend: string;
   ollamaUrl: string;
+  /** Claude 5 agent options (settings, overridable per profile). */
+  claude: ClaudeOptions;
+  /** Z.ai GLM options (settings, overridable per profile). */
+  zai: GlmOptions;
   /** '' means manual (VS Code settings); otherwise the active profile name. */
   activeProfile: string;
   profiles: ProfileConfig[];
@@ -48,7 +66,7 @@ export interface EffectiveConfig {
   catalog?: LoadedCatalog;
 }
 
-const PROVIDERS: ProviderId[] = ['copilot', 'anthropic', 'openai', 'gemini', 'ollama'];
+const PROVIDERS: ProviderId[] = ['copilot', 'anthropic', 'zai', 'openai', 'gemini', 'ollama'];
 const ACTIVE_PROFILE_KEY = 'a2ui.activeProfile';
 
 export const CONFIG_FILE_NAMES = ['a2ui.config.json', '.a2ui/config.json'];
@@ -67,11 +85,30 @@ export const CONFIG_TEMPLATE = `{
     },
     {
       "name": "claude",
-      "description": "Anthropic Claude for the richest surfaces",
+      "description": "Claude Opus 5 designs, Claude Sonnet 5 handles actions",
+      "provider": "anthropic",
+      "model": "claude-opus-5",
+      "effort": "high",
+      "actionModel": "claude-sonnet-5",
+      "actionEffort": "medium",
+      "maxTokens": 16000
+    },
+    {
+      "name": "claude-fast",
+      "description": "Claude Sonnet 5 end to end — quick iterations",
       "provider": "anthropic",
       "model": "claude-sonnet-5",
-      "temperature": 0.7,
-      "maxTokens": 8192
+      "effort": "medium",
+      "actionModel": "",
+      "maxTokens": 16000
+    },
+    {
+      "name": "glm",
+      "description": "Z.ai GLM-5.3 on the GLM Coding Plan",
+      "provider": "zai",
+      "model": "glm-5.3",
+      "plan": "coding",
+      "reasoningEffort": "high"
     },
     {
       "name": "local",
@@ -212,6 +249,31 @@ export class ConfigService implements vscode.Disposable {
     return fromSettings[provider] || undefined;
   }
 
+  /** Claude options from VS Code settings (no profile applied). */
+  claudeSettings(): ClaudeOptions {
+    const cfg = vscode.workspace.getConfiguration('a2ui');
+    const effort = cfg.get<string>('claude.effort', DEFAULT_CLAUDE_OPTIONS.effort);
+    const actionEffort = cfg.get<string>('claude.actionEffort', DEFAULT_CLAUDE_OPTIONS.actionEffort);
+    return {
+      effort: isClaudeEffort(effort) ? effort : DEFAULT_CLAUDE_OPTIONS.effort,
+      actionModel: cfg.get<string>('claude.actionModel', DEFAULT_CLAUDE_OPTIONS.actionModel),
+      actionEffort: isClaudeEffort(actionEffort) ? actionEffort : DEFAULT_CLAUDE_OPTIONS.actionEffort,
+      showThinking: cfg.get<boolean>('claude.showThinking', DEFAULT_CLAUDE_OPTIONS.showThinking),
+      refusalFallback: cfg.get<boolean>('claude.refusalFallback', DEFAULT_CLAUDE_OPTIONS.refusalFallback)
+    };
+  }
+
+  /** GLM options from VS Code settings (no profile applied). */
+  glmSettings(): GlmOptions {
+    const cfg = vscode.workspace.getConfiguration('a2ui');
+    const plan = cfg.get<string>('zai.plan', DEFAULT_GLM_OPTIONS.plan);
+    const effort = cfg.get<string>('zai.reasoningEffort', DEFAULT_GLM_OPTIONS.reasoningEffort);
+    return {
+      plan: isGlmPlan(plan) ? plan : DEFAULT_GLM_OPTIONS.plan,
+      reasoningEffort: isGlmReasoningEffort(effort) ? effort : DEFAULT_GLM_OPTIONS.reasoningEffort
+    };
+  }
+
   effective(): EffectiveConfig {
     const cfg = vscode.workspace.getConfiguration('a2ui');
     const file = this.fileConfig ?? {};
@@ -219,13 +281,15 @@ export class ConfigService implements vscode.Disposable {
       provider: cfg.get<ProviderId>('provider', 'copilot'),
       model: cfg.get<string>('model', ''),
       temperature: cfg.get<number>('temperature', 0.7),
-      maxTokens: cfg.get<number>('maxTokens', 8192),
+      maxTokens: cfg.get<number>('maxTokens', 16000),
       autoRepair: file.autoRepair ?? cfg.get<boolean>('autoRepair', true),
       systemPromptAppend:
         typeof file.systemPromptAppend === 'string' && file.systemPromptAppend.trim()
           ? file.systemPromptAppend
           : cfg.get<string>('systemPromptAppend', ''),
       ollamaUrl: file.ollamaUrl ?? cfg.get<string>('ollamaUrl', 'http://localhost:11434'),
+      claude: this.claudeSettings(),
+      zai: this.glmSettings(),
       activeProfile: this.activeProfileName,
       profiles: this.profiles,
       source: 'settings',
@@ -239,6 +303,12 @@ export class ConfigService implements vscode.Disposable {
       base.model = profile.model ?? '';
       if (typeof profile.temperature === 'number') base.temperature = profile.temperature;
       if (typeof profile.maxTokens === 'number') base.maxTokens = profile.maxTokens;
+      if (isClaudeEffort(profile.effort)) base.claude.effort = profile.effort;
+      if (typeof profile.actionModel === 'string') base.claude.actionModel = profile.actionModel;
+      if (isClaudeEffort(profile.actionEffort)) base.claude.actionEffort = profile.actionEffort;
+      if (typeof profile.showThinking === 'boolean') base.claude.showThinking = profile.showThinking;
+      if (isGlmPlan(profile.plan)) base.zai.plan = profile.plan;
+      if (isGlmReasoningEffort(profile.reasoningEffort)) base.zai.reasoningEffort = profile.reasoningEffort;
       base.source = 'profile';
     }
     base.baseUrl = this.baseUrlFor(base.provider);
