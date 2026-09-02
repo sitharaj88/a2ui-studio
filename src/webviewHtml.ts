@@ -35,7 +35,7 @@ export const EXPORT_VSCODE_VARS = `:root{
 --vscode-descriptionForeground:#9d9d9d;--vscode-widget-border:#454545;
 --vscode-editorWidget-background:#252526;--vscode-input-background:#3c3c3c;
 --vscode-input-foreground:#cccccc;--vscode-input-border:#3c3c3c;
---vscode-focusBorder:#6c8eef;--vscode-errorForeground:#f48771;
+--vscode-focusBorder:#0e8385;--vscode-errorForeground:#f48771;
 --vscode-font-family:system-ui,-apple-system,'Segoe UI',sans-serif;
 --vscode-editor-font-family:ui-monospace,Menlo,Consolas,monospace;
 --vscode-symbolIcon-propertyForeground:#7cacf8;

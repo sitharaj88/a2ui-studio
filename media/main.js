@@ -1445,8 +1445,8 @@
     usage: { turns: 0, input: 0, output: 0, cacheRead: 0, cacheWrite: 0, cost: 0, lastModel: '', lastKind: '' },
     startedAt: Date.now(),
     appearance: Object.assign(
-      { accent: '#6C8EEF', accentB: '#B06CEF', surfaceWidth: 600, density: 'comfortable', motion: true },
-      persisted.appearance || {}
+      { accent: '#0E8385', accentB: '#7CC242', surfaceWidth: 600, density: 'comfortable', motion: true },
+      persisted.appearance && persisted.appearance.accent === '#6C8EEF' ? {} : persisted.appearance || {}
     )
   };
 
@@ -1467,9 +1467,10 @@
   const NAV_LABELS = { dashboard: 'Dashboard', playground: 'Playground', arena: 'Arena', gallery: 'Gallery', settings: 'Settings' };
 
   const ACCENT_PRESETS = [
-    { name: 'Indigo', a: '#6C8EEF', b: '#B06CEF' },
-    { name: 'Teal', a: '#22B8A0', b: '#3D9BE9' },
-    { name: 'Sunset', a: '#EF8354', b: '#EE4266' },
+    { name: 'Lagoon', a: '#0E8385', b: '#7CC242' },
+    { name: 'Ember', a: '#E4572E', b: '#E9A23B' },
+    { name: 'Harbor', a: '#1C4E80', b: '#0E8385' },
+    { name: 'Classic', a: '#6C8EEF', b: '#B06CEF' },
     { name: 'Forest', a: '#4C9F70', b: '#95D5B2' },
     { name: 'Mono', a: '#8E9AAF', b: '#CBC0D3' }
   ];

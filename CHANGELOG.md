@@ -23,6 +23,9 @@
 - Per-message validation now flags duplicate ids, `Card` with `children`, and `Button` without a `child`.
 - Repair notices appear in the chat as event pills.
 
+### Brand
+- New **Lagoon** brand palette — deep teal (`#0E8385`) to leaf green (`#7CC242`) with marigold and coral ember accents — replaces the stock indigo/violet gradient across the studio chrome, default surface theme, agent prompt examples, extension icon, gallery banner and README badges. Accent presets: Lagoon (default), Ember, Harbor, Classic.
+
 ### Other
 - Copilot model selection tolerates VS Code renaming a model family between listing and use (e.g. `oswe-vscode` → `oswe-vscode-modelD`): exact match first, then a unique variant of the same family; ambiguous or unknown ids still error instead of substituting a model.
 - Default `a2ui.maxTokens` raised to 16000 so adaptive thinking has headroom.

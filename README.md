@@ -2,9 +2,9 @@
 
 **Experiment with [A2UI](https://a2ui.org) — Google's open protocol for agent-driven interfaces — right inside VS Code.**
 
-[![Install from VS Code Marketplace](https://img.shields.io/badge/VS%20Code-Install%20from%20Marketplace-6C8EEF?logo=visualstudiocode&logoColor=white)](https://marketplace.visualstudio.com/items?itemName=sitharaj.a2ui-studio)
-[![Version](https://img.shields.io/badge/version-1.1.0-22B8A0)](https://marketplace.visualstudio.com/items?itemName=sitharaj.a2ui-studio)
-[![License](https://img.shields.io/badge/license-Apache--2.0-B06CEF)](LICENSE)
+[![Install from VS Code Marketplace](https://img.shields.io/badge/VS%20Code-Install%20from%20Marketplace-0E8385?logo=visualstudiocode&logoColor=white)](https://marketplace.visualstudio.com/items?itemName=sitharaj.a2ui-studio)
+[![Version](https://img.shields.io/badge/version-1.1.0-7CC242)](https://marketplace.visualstudio.com/items?itemName=sitharaj.a2ui-studio)
+[![License](https://img.shields.io/badge/license-Apache--2.0-E9A23B)](LICENSE)
 
 Describe any UI in plain language and watch an AI agent stream live **A2UI v0.9.1** protocol messages that render as beautiful, fully interactive surfaces: forms, wizards, dashboards, product cards — with real data binding, validation, and action round-trips back to the agent.
 

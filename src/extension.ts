@@ -6,7 +6,7 @@ import { PlaygroundPanel } from './panel';
 import { buildSystemPrompt, userRequestPrompt } from './prompt';
 import { PROVIDER_LABELS, ProviderId, secretKeyFor } from './providers';
 
-const EXAMPLE_STREAM = `{"version":"v0.9.1","createSurface":{"surfaceId":"hello_card","catalogId":"https://a2ui.org/specification/v0_9_1/catalogs/basic/catalog.json","theme":{"primaryColor":"#6C8EEF"}}}
+const EXAMPLE_STREAM = `{"version":"v0.9.1","createSurface":{"surfaceId":"hello_card","catalogId":"https://a2ui.org/specification/v0_9_1/catalogs/basic/catalog.json","theme":{"primaryColor":"#0E8385"}}}
 {"version":"v0.9.1","updateComponents":{"surfaceId":"hello_card","components":[{"id":"root","component":"Card","child":"col"},{"id":"col","component":"Column","children":["title","subtitle","divider","name_field","greet_btn"]},{"id":"title","component":"Text","text":"Hello, A2UI!","variant":"h2"},{"id":"subtitle","component":"Text","text":"Edit this file and press the preview button in the editor title bar.","variant":"caption"},{"id":"divider","component":"Divider","axis":"horizontal"},{"id":"name_field","component":"TextField","label":"Your name","value":{"path":"/user/name"},"variant":"shortText"},{"id":"greet_label","component":"Text","text":"Greet"},{"id":"greet_btn","component":"Button","child":"greet_label","variant":"primary","action":{"event":{"name":"greet","context":{"name":{"path":"/user/name"}}}}}]}}
 {"version":"v0.9.1","updateDataModel":{"surfaceId":"hello_card","path":"/user","value":{"name":"World"}}}
 `;

@@ -5,7 +5,7 @@
   const CATALOG = 'https://a2ui.org/specification/v0_9_1/catalogs/basic/catalog.json';
 
   const contactFormDemo = [
-    { version: 'v0.9.1', createSurface: { surfaceId: 'demo_contact_form', catalogId: CATALOG, sendDataModel: true, theme: { primaryColor: '#6C8EEF', agentDisplayName: 'Demo Agent' } } },
+    { version: 'v0.9.1', createSurface: { surfaceId: 'demo_contact_form', catalogId: CATALOG, sendDataModel: true, theme: { primaryColor: '#0E8385', agentDisplayName: 'Demo Agent' } } },
     {
       version: 'v0.9.1',
       updateComponents: {
@@ -112,7 +112,7 @@
   const STUDIO_CATALOG = 'https://a2ui-studio.dev/catalogs/studio/v1';
 
   const studioAnalyticsDemo = [
-    { version: 'v0.9.1', createSurface: { surfaceId: 'demo_studio_analytics', catalogId: STUDIO_CATALOG, sendDataModel: true, theme: { primaryColor: '#6C8EEF', agentDisplayName: 'Studio Demo Agent' } } },
+    { version: 'v0.9.1', createSurface: { surfaceId: 'demo_studio_analytics', catalogId: STUDIO_CATALOG, sendDataModel: true, theme: { primaryColor: '#0E8385', agentDisplayName: 'Studio Demo Agent' } } },
     {
       version: 'v0.9.1',
       updateComponents: {

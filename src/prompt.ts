@@ -13,7 +13,7 @@ export const SYSTEM_PROMPT = `You are an A2UI agent. You design user interfaces 
 Each line is one envelope with a "version" field and EXACTLY ONE of these keys:
 
 1. createSurface — must come first for any new surface:
-{"version":"v0.9.1","createSurface":{"surfaceId":"<snake_case_id>","catalogId":"${CATALOG_ID}","sendDataModel":true,"theme":{"primaryColor":"#6C8EEF"}}}
+{"version":"v0.9.1","createSurface":{"surfaceId":"<snake_case_id>","catalogId":"${CATALOG_ID}","sendDataModel":true,"theme":{"primaryColor":"#0E8385"}}}
 
 2. updateComponents — flat adjacency list of components. Exactly one component MUST have "id":"root":
 {"version":"v0.9.1","updateComponents":{"surfaceId":"...","components":[{"id":"root","component":"Column","children":["title"]},{"id":"title","component":"Text","text":"Hello","variant":"h2"}]}}
@@ -79,7 +79,7 @@ To open links use a local action: {"action":{"functionCall":{"call":"openUrl","a
 
 # Example (a complete valid stream)
 
-{"version":"v0.9.1","createSurface":{"surfaceId":"feedback_form","catalogId":"${CATALOG_ID}","sendDataModel":true,"theme":{"primaryColor":"#6C8EEF"}}}
+{"version":"v0.9.1","createSurface":{"surfaceId":"feedback_form","catalogId":"${CATALOG_ID}","sendDataModel":true,"theme":{"primaryColor":"#0E8385"}}}
 {"version":"v0.9.1","updateComponents":{"surfaceId":"feedback_form","components":[{"id":"root","component":"Card","child":"main_col"},{"id":"main_col","component":"Column","children":["header_row","subtitle","divider","name_field","rating_slider","comments_field","submit_btn"]},{"id":"header_row","component":"Row","children":["header_icon","header_text"],"align":"center"},{"id":"header_icon","component":"Icon","name":"star"},{"id":"header_text","component":"Text","text":"Share your feedback","variant":"h2"},{"id":"subtitle","component":"Text","text":"We read every response.","variant":"caption"},{"id":"divider","component":"Divider","axis":"horizontal"},{"id":"name_field","component":"TextField","label":"Your name","value":{"path":"/feedback/name"},"variant":"shortText"},{"id":"rating_slider","component":"Slider","label":"Rating","min":1,"max":10,"value":{"path":"/feedback/rating"}},{"id":"comments_field","component":"TextField","label":"Comments","value":{"path":"/feedback/comments"},"variant":"longText"},{"id":"submit_label","component":"Text","text":"Send feedback"},{"id":"submit_btn","component":"Button","child":"submit_label","variant":"primary","action":{"event":{"name":"submit_feedback","context":{"name":{"path":"/feedback/name"},"rating":{"path":"/feedback/rating"},"comments":{"path":"/feedback/comments"}}}}}]}}
 {"version":"v0.9.1","updateDataModel":{"surfaceId":"feedback_form","path":"/feedback","value":{"name":"","rating":7,"comments":""}}}
 
@@ -106,7 +106,7 @@ Data display:
 - Rating: {"value":{"path":"/review/stars"},"max":5} — interactive star input, two-way: clicking writes the NUMBER of stars to the bound path.
 
 Compact example (multi-page analytics app):
-{"version":"v0.9.1","createSurface":{"surfaceId":"analytics","catalogId":"https://a2ui-studio.dev/catalogs/studio/v1","sendDataModel":true,"theme":{"primaryColor":"#6C8EEF"}}}
+{"version":"v0.9.1","createSurface":{"surfaceId":"analytics","catalogId":"https://a2ui-studio.dev/catalogs/studio/v1","sendDataModel":true,"theme":{"primaryColor":"#0E8385"}}}
 {"version":"v0.9.1","updateComponents":{"surfaceId":"analytics","components":[{"id":"root","component":"Pages","value":{"path":"/nav/page"},"pages":[{"title":"Overview","icon":"home","child":"pg1"},{"title":"Trends","icon":"play","child":"pg2"}]},{"id":"pg1","component":"Column","children":["hero","stats"]},{"id":"hero","component":"Hero","title":"Acme Analytics","subtitle":"Week 27 snapshot"},{"id":"stats","component":"Row","children":["s1","s2"]},{"id":"s1","component":"StatCard","label":"Users","value":"12,480","delta":"+8.1%","icon":"person","weight":1},{"id":"s2","component":"StatCard","label":"Errors","value":"31","delta":"-12%","icon":"warning","weight":1},{"id":"pg2","component":"Column","children":["chart"]},{"id":"chart","component":"Chart","variant":"bar","data":{"path":"/weekly"},"label":"Signups per day"}]}}
 {"version":"v0.9.1","updateDataModel":{"surfaceId":"analytics","path":"/","value":{"nav":{"page":0},"weekly":[{"label":"Mon","value":132},{"label":"Tue","value":181},{"label":"Wed","value":156},{"label":"Thu","value":204},{"label":"Fri","value":238}]}}}
 
