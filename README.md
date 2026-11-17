@@ -46,7 +46,7 @@ Then run **`A2UI: Open Playground`** from the command palette and click an insta
 - **Prompt library** — save your favorite prompts; they persist across sessions and appear in the gallery and composer chips.
 - **Surface export** — export any rendered surface as a standalone HTML snapshot, or the whole session as replayable `.a2ui.jsonl`.
 - **Custom catalogs** — point `a2ui.config.json` at your design system's catalog; the agent generates against it, and unknown components render as labeled placeholders.
-- **`@a2ui` in Copilot Chat** — type `@a2ui a booking form` in Copilot Chat and open the result in the studio with one click.
+- **Copilot Agent integration** — generate A2UI JSONL in Agent mode, then use the `a2uiPreviewSurface` tool to open the result in the Studio interface.
 - **Remote A2A agents (experimental)** — connect to a real A2UI-capable A2A endpoint instead of simulating one.
 - **Auto-repair loop with a surface linter** — per-message validation plus cross-message checks (dangling child ids, missing `root`, duplicate ids, updates to surfaces never created, `Card` with multiple children) are reported back to the model for one corrective turn (the spec's prompt-generate-validate loop).
 
@@ -99,6 +99,11 @@ Models: `glm-5.3` (flagship), `glm-5.3-flash` (fast, multimodal), plus `[1m]` va
    - **Ollama**: have `ollama serve` running locally.
 3. Describe a UI — *“a coffee order form with size, milk options and a pay button”* — and press Enter.
 4. Interact with the generated surface. Button actions go back to the agent, which updates the UI in response.
+
+In Copilot Agent mode, ask the agent to generate valid A2UI JSONL and invoke
+`a2uiPreviewSurface` to open it in the Studio. The Studio interface itself is
+unchanged: Dashboard, Playground, Arena, Gallery and Settings remain available
+from the A2UI activity bar or the `A2UI: Open Playground` command.
 
 ## 🏢 Team configuration: `a2ui.config.json`
 

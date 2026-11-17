@@ -12,4 +12,6 @@
 
 Keys are stored in VS Code **secret storage** — never in settings files. Once a key is set, the model dropdown lists your account's actual available models.
 
-You can also type `@a2ui a booking form` in **Copilot Chat** and open the result in the studio with one click.
+In **Copilot Agent** mode, ask for valid A2UI JSONL and let the `a2uiPreviewSurface`
+tool open the result in the Studio. The complete Studio interface remains available
+from the A2UI activity bar.
